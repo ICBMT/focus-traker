@@ -1,0 +1,142 @@
+[
+  {
+    "name": "matching cadence is steady, not a flow diagnosis",
+    "summary": {
+      "keyCount": 20,
+      "pointerEvents": 0,
+      "editingCount": 0,
+      "clicks": 0,
+      "scrolls": 0,
+      "intervals": [0, 19, 0, 0, 0],
+      "observedMs": 10000
+    },
+    "baseline": [0, 1, 0, 0, 0],
+    "status": "steady"
+  },
+  {
+    "name": "a different cadence has an unknown cause",
+    "summary": {
+      "keyCount": 20,
+      "pointerEvents": 0,
+      "editingCount": 0,
+      "clicks": 0,
+      "scrolls": 0,
+      "intervals": [0, 19, 0, 0, 0],
+      "observedMs": 10000
+    },
+    "baseline": [1, 0, 0, 0, 0],
+    "status": "changed"
+  },
+  {
+    "name": "no comparison sample means unknown",
+    "summary": {
+      "keyCount": 20,
+      "pointerEvents": 0,
+      "editingCount": 0,
+      "clicks": 0,
+      "scrolls": 0,
+      "intervals": [0, 19, 0, 0, 0],
+      "observedMs": 10000
+    },
+    "baseline": null,
+    "status": "unknown"
+  },
+  {
+    "name": "sparse input is not disengagement",
+    "summary": {
+      "keyCount": 1,
+      "pointerEvents": 0,
+      "editingCount": 0,
+      "clicks": 0,
+      "scrolls": 0,
+      "intervals": [0, 0, 0, 0, 0],
+      "observedMs": 10000
+    },
+    "baseline": [0, 1, 0, 0, 0],
+    "status": "unknown"
+  },
+  {
+    "name": "a short observation abstains",
+    "summary": {
+      "keyCount": 20,
+      "pointerEvents": 0,
+      "editingCount": 0,
+      "clicks": 0,
+      "scrolls": 0,
+      "intervals": [0, 19, 0, 0, 0],
+      "observedMs": 4999
+    },
+    "baseline": [0, 1, 0, 0, 0],
+    "status": "unknown"
+  },
+  {
+    "name": "an expired window abstains",
+    "summary": {
+      "keyCount": 20,
+      "pointerEvents": 0,
+      "editingCount": 0,
+      "clicks": 0,
+      "scrolls": 0,
+      "intervals": [0, 19, 0, 0, 0],
+      "observedMs": 30001
+    },
+    "baseline": [0, 1, 0, 0, 0],
+    "status": "unknown"
+  },
+  {
+    "name": "oversized counts abstain",
+    "summary": {
+      "keyCount": 20,
+      "pointerEvents": 1000001,
+      "editingCount": 0,
+      "clicks": 0,
+      "scrolls": 0,
+      "intervals": [0, 19, 0, 0, 0],
+      "observedMs": 10000
+    },
+    "baseline": [0, 1, 0, 0, 0],
+    "status": "unknown"
+  },
+  {
+    "name": "impossible interval counts abstain",
+    "summary": {
+      "keyCount": 2,
+      "pointerEvents": 0,
+      "editingCount": 0,
+      "clicks": 0,
+      "scrolls": 0,
+      "intervals": [0, 19, 0, 0, 0],
+      "observedMs": 10000
+    },
+    "baseline": [0, 1, 0, 0, 0],
+    "status": "unknown"
+  },
+  {
+    "name": "an unnormalized sample abstains",
+    "summary": {
+      "keyCount": 20,
+      "pointerEvents": 0,
+      "editingCount": 0,
+      "clicks": 0,
+      "scrolls": 0,
+      "intervals": [0, 19, 0, 0, 0],
+      "observedMs": 10000
+    },
+    "baseline": [1, 1, 1, 1, 1],
+    "status": "unknown"
+  },
+  {
+    "name": "a partially different cadence can still be similar",
+    "summary": {
+      "keyCount": 20,
+      "pointerEvents": 0,
+      "editingCount": 0,
+      "clicks": 0,
+      "scrolls": 0,
+      "intervals": [0, 19, 0, 0, 0],
+      "observedMs": 10000
+    },
+    "baseline": [0, 0.7, 0.3, 0, 0],
+    "status": "steady"
+  }
+]

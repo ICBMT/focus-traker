@@ -1,0 +1,11 @@
+[package]
+name = "focus-core"
+version.workspace = true
+edition.workspace = true
+description = "Deterministic, permission-free session and rhythm logic for Focus Tracker"
+
+[dependencies]
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

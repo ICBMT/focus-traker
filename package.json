@@ -1,0 +1,49 @@
+{
+  "name": "focus-tracker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A local-first focus and break companion, built with Rust and Tauri.",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "npm run build && node scripts/e2e.mjs",
+    "format": "prettier --write src tests fixtures scripts .github *.json *.ts index.html",
+    "tauri": "tauri",
+    "format:check": "prettier --check src tests fixtures scripts .github *.json *.ts index.html"
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "5.3.0",
+    "@fontsource-variable/manrope": "5.3.0",
+    "@fontsource/dm-mono": "5.3.0",
+    "@tauri-apps/api": "2.12.5",
+    "lucide-react": "1.76.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.65.1",
+    "@sparticuz/chromium": "153.0.0",
+    "@tauri-apps/cli": "2.12.6",
+    "@testing-library/jest-dom": "8.0.0",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.13",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "jsdom": "31.0.1",
+    "prettier": "3.10.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.1"
+  }
+}

@@ -1,0 +1,94 @@
+# Native validation checklist
+
+**Status, 2026-11-19: all native device rows are unverified.** Rust core tests and production-browser tests are recorded in [IMPLEMENTATION.md](IMPLEMENTATION.md); they do not pass any real-device gate below. The CI matrix is configured, not observed running.
+
+Linux is the first device-validation priority. Windows and macOS compile/runtime work should happen in the same cycle, not be postponed until every Linux feature is complete. Record failures/degraded features as such; never obtain coverage by elevating input privileges or disabling OS privacy controls.
+
+## Record the environment
+
+Copy this record for every actual run. Leave unavailable facts unknown, not guessed.
+
+```text
+Date / build commit:
+OS + version / CPU + RAM + graphics:
+Linux distro / DE + version / Wayland or X11 / portal versions:
+Native WebView version (WebKitGTK / WebView2 / WKWebView):
+Camera + keyboard/layout + pointer/trackpad:
+Monitor count / scaling / assistive technology:
+Rust / Node / packaging format:
+Test / steps / expected / observed / pass-fail-degraded / logs:
+```
+
+The user’s reference budget is approximately 16 GB RAM without a dedicated GPU. Their specific Linux distribution/desktop/session is still unknown. It is not a benchmark result or a tested minimum specification.
+
+## Current platform ledger
+
+| Target | Source/config | CI test/build | Native launch | Permissions/hardware | Packaged/signed release |
+| --- | --- | --- | --- | --- | --- |
+| Linux / GNOME Wayland | Present, no global adapter | Configured, not run | Not tested | Not tested | Not produced |
+| Linux / supporting KDE Wayland | Shared host only | Same Linux job | Not tested | Not tested | Not produced |
+| Linux / genuine X11 | Shared host only | Same Linux job | Not tested | Not tested | Not produced |
+| Windows / WebView2 | Shared host + icon | Configured, not run | Not tested | Not tested | Not produced |
+| macOS / WKWebView | Shared host + usage text/entitlement/icon | Configured, not run | Not tested | Not tested | Not produced |
+
+## 1. Baseline without sensors, AI, or accounts
+
+- [ ] Install exact documented native prerequisites and use the committed npm/Cargo lockfiles.
+- [ ] `npm ci`, frontend checks/build, `cargo test --workspace --locked`, and `npm run tauri -- build --no-bundle --ci` pass on each OS.
+- [ ] Launch the actual built app, not the web preview; the UI identifies Desktop/Rust.
+- [ ] No camera/input/model request occurs at launch, restart, or recovery. No app/remote account is needed.
+- [ ] Session start/pause/resume/early finish, natural expiry, voluntary break, and no-break exit work with all optional components absent.
+- [ ] Optional garden can close immediately via close button, Escape, and Leave; success is not required. App focus/break timers remain controllable.
+- [ ] Short/long sessions, midnight, DST/clock changes, suspend/resume, lock/unlock, minimized view, and a busy UI do not double-count or silently restart a paused session.
+- [ ] Recovery stays paused. Deferring the recovery dialog preserves the checkpoint; discarding it is explicit. No sensor or provider permission is restored.
+- [ ] Window resize/minimum size, mixed DPI, keyboard-only interaction, screen reader, high contrast/large text, both themes, system theme changes, and reduced motion are usable.
+- [ ] The release CSP and local asset/font loading work in each native WebView. Vite development allowances do not loosen the release CSP.
+
+## 2. Local file and data safety
+
+- [ ] Repeated staged writes replace an existing workspace on the platform without truncation; failed writes leave the prior workspace readable.
+- [ ] Unix app directory/file modes are 0700/0600; Windows file access follows the expected user app-data ACLs. Check actual device behavior rather than assuming parity.
+- [ ] Malformed/unsupported/oversized/unreadable data stays untouched and does not trigger autosave of defaults.
+- [ ] History opt-out clears summaries; toggling it on does not resurrect completed live records. Active task recovery storage is disclosed.
+- [ ] Export dialog cancel is a no-op; deliberate export omits checkpoint/sensor/chat/credentials and includes the documented task text.
+- [ ] Clear history and Delete all stop sessions/tests, invalidate stale writes, and show failures honestly. No stale record returns after restart.
+- [ ] Native JSON deserialization rejects unknown fields and invalid snapshots. Old summaries expire without deleting valid current data.
+- [ ] Rapid exit/force-quit/disk-full/read-only directory cases document actual loss bounds. Do not claim an unimplemented guaranteed flush.
+- [ ] Before release, add/test cross-instance coordination; until then use one editing process/tab and disclose the limitation.
+
+## 3. Foreground camera lifecycle only
+
+No vision model or fatigue/emotion classification is implemented.
+
+- [ ] Without pressing Start camera preview, there is no hardware indicator, permission request, capture stream, or network upload.
+- [ ] Grant/deny/revoke on each OS/WebView; missing/busy camera; unplug/end track; late permission result after Stop/page exit.
+- [ ] Stop/Pause all/page exit/hidden page stop every video track and clear the element. Returning to the page does not restart capture.
+- [ ] Permission text matches actual purpose, microphone is never requested, OS indicators agree with the UI, and no frames reach persistence or AI.
+- [ ] Document actual behavior when the native window loses focus, is hidden/minimized, or the OS locks/sleeps. This first slice claims no reliable background capture; hidden operation requires the separate planned spike.
+- [ ] Measure CPU/RSS/UI responsiveness and capture dimensions/rate/quality. Current 640×480/15 fps requests are hints, not observed output guarantees.
+
+## 4. Input experiment and future interaction-style work
+
+- [ ] Own-pad typing counts only while events target that pad; other apps, password fields, and other UI are not observed. No global hook/device capture permission is requested.
+- [ ] Characters/raw event arrays/window titles/coordinates/paths are absent from logs, files, export, and AI payloads. Optional editing/pointer counts are separate deliberate choices.
+- [ ] Stopping, page exit, hidden page, Pause all, and changing the test context discard summaries/sample as documented; stale async results cannot revive a test.
+- [ ] Native IPC accepts integer observation milliseconds and parity fixtures agree. Invalid/weak/missing samples remain unknown.
+- [ ] Label steady/similar as resemblance only; changed has unknown cause. Never substitute sensor labels for voluntary boredom/mood/in-the-zone reports.
+- [ ] Global idle/style adapters, richer pointer features, retention, and adaptive suggestions remain unavailable until their platform, consent, privacy, and field-validation gates pass.
+
+## 5. Explicit Ollama path
+
+- [ ] No discovery or generation until explicit action; hosted preview never attempts the viewer’s localhost.
+- [ ] Confirm real server/model versions, model license, no-cloud configuration, and actual routing. A loopback URL or filtered model name is not sufficient evidence.
+- [ ] Test unavailable server, invalid port, no installed models, cloud-tag exclusion, slow/non-JSON/oversized responses, cancellation, and repeated send/stop.
+- [ ] Only deliberately supplied chat plus optional task context crosses the boundary; no sensors, history, tools, API keys, proxy, redirects, or remote fallback.
+- [ ] Measure CPU-only RAM/latency alongside the desktop app on reference hardware. Request timeout is not a speed benchmark. Document continued server generation after client cancel where observed.
+
+## 6. Notifications and release gates
+
+- [ ] Sandbox examples are visibly synthetic, volatile, explainable, and never mistaken for intercepted OS traffic.
+- [ ] No claim of real suppression, source integration, global glow, idle sensing, or OS-lock control is made in UI/release notes.
+- [ ] A future real source first proves authorization and delivery ownership; uncertain relevance and urgent handling retain conservative fallbacks.
+- [ ] Choose app license, complete transitive license notices and model-license review, then test installer/signing/notarization/updater behavior separately. CI executable compilation is not a signed release.
+
+For camera/interaction-style effectiveness and long-session evaluation, continue the full gates in [ROADMAP.md](ROADMAP.md), [INPUT_RHYTHM.md](INPUT_RHYTHM.md), and [PLATFORM_SUPPORT.md](PLATFORM_SUPPORT.md). This checklist cannot be marked passed from synthetic input, browser screenshots, or source inspection alone.

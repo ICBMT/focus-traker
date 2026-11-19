@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-window",
+  "description": "Only the bundled main window can control sessions, local workspace data, and explicitly requested loopback AI. No shell, global input, OS lock, or general network commands.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "allow-runtime-info",
+    "allow-load-workspace",
+    "allow-save-workspace",
+    "allow-export-workspace",
+    "allow-session-snapshot",
+    "allow-reset-session",
+    "allow-start-session",
+    "allow-pause-session",
+    "allow-resume-session",
+    "allow-finish-session",
+    "allow-start-break",
+    "allow-restore-session",
+    "allow-compare-rhythm",
+    "allow-ollama-models",
+    "allow-ollama-chat",
+    "allow-cancel-chat"
+  ]
+}

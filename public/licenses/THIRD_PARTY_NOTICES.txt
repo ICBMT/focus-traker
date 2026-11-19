@@ -1,0 +1,27 @@
+Focus foundation — bundled web assets / direct runtime notices
+
+Fonts are bundled locally; no font CDN requests are made.
+
+DM Sans — Copyright 2014 The DM Sans Project Authors.
+SIL Open Font License 1.1; see DM-Sans-OFL.txt.
+
+Manrope — Copyright 2019 The Manrope Project Authors.
+SIL Open Font License 1.1; see Manrope-OFL.txt.
+
+DM Mono — Copyright 2020 The DM Mono Project Authors.
+SIL Open Font License 1.1; see DM-Mono-OFL.txt.
+
+React and React DOM — MIT; see React-MIT.txt and React-DOM-MIT.txt.
+Lucide React — ISC; see Lucide-ISC.txt.
+Tauri JavaScript API — MIT OR Apache-2.0; see Tauri-API-MIT.txt and
+Tauri-API-Apache-2.0.txt.
+
+Exact JavaScript versions are recorded in package-lock.json. Native dependency
+versions are recorded in Cargo.lock. Development tools/test Chromium are not
+bundled into the application.
+
+This is a starting attribution inventory, not a complete transitive native
+license report. No native release has been produced. Full transitive attribution,
+platform redistribution terms, app licensing/distribution, and any selected model
+license must be reviewed before publishing a distributable. Model weights are
+not included, downloaded automatically, or licensed by this repository.

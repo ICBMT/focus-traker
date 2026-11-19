@@ -1,0 +1,448 @@
+[
+  {
+    "name": "pauses exclude time until an explicit resume",
+    "steps": [
+      {
+        "op": "start",
+        "mono": 0,
+        "wall": 1000000,
+        "options": {
+          "id": "shared",
+          "task": "Write a paragraph",
+          "mode": "deep",
+          "durationMs": 60000
+        }
+      },
+      {
+        "op": "tick",
+        "mono": 5000,
+        "wall": 1005000
+      },
+      {
+        "op": "pause",
+        "mono": 5000,
+        "wall": 1005000
+      },
+      {
+        "op": "tick",
+        "mono": 25000,
+        "wall": 1025000
+      },
+      {
+        "op": "resume",
+        "mono": 25000,
+        "wall": 1025000
+      },
+      {
+        "op": "tick",
+        "mono": 28000,
+        "wall": 1028000
+      }
+    ],
+    "expected": {
+      "phase": "focus",
+      "remainingMs": 52000,
+      "focusElapsedMs": 8000,
+      "interrupted": false
+    }
+  },
+  {
+    "name": "a long monotonic gap pauses without crediting missing time",
+    "steps": [
+      {
+        "op": "start",
+        "mono": 0,
+        "wall": 1000000,
+        "options": {
+          "id": "shared",
+          "task": "Write a paragraph",
+          "mode": "deep",
+          "durationMs": 60000
+        }
+      },
+      {
+        "op": "tick",
+        "mono": 5000,
+        "wall": 1005000
+      },
+      {
+        "op": "tick",
+        "mono": 25001,
+        "wall": 1025001
+      }
+    ],
+    "expected": {
+      "phase": "paused",
+      "remainingMs": 55000,
+      "focusElapsedMs": 5000,
+      "interrupted": true
+    }
+  },
+  {
+    "name": "a backwards monotonic clock is an interruption",
+    "steps": [
+      {
+        "op": "start",
+        "mono": 0,
+        "wall": 1000000,
+        "options": {
+          "id": "shared",
+          "task": "Write a paragraph",
+          "mode": "deep",
+          "durationMs": 60000
+        }
+      },
+      {
+        "op": "tick",
+        "mono": 5000,
+        "wall": 1005000
+      },
+      {
+        "op": "tick",
+        "mono": 4000,
+        "wall": 1004000
+      }
+    ],
+    "expected": {
+      "phase": "paused",
+      "remainingMs": 55000,
+      "focusElapsedMs": 5000,
+      "interrupted": true
+    }
+  },
+  {
+    "name": "sleep is caught even when monotonic time barely moves",
+    "steps": [
+      {
+        "op": "start",
+        "mono": 0,
+        "wall": 1000000,
+        "options": {
+          "id": "shared",
+          "task": "Write a paragraph",
+          "mode": "deep",
+          "durationMs": 60000
+        }
+      },
+      {
+        "op": "tick",
+        "mono": 1000,
+        "wall": 1120000
+      }
+    ],
+    "expected": {
+      "phase": "paused",
+      "remainingMs": 60000,
+      "focusElapsedMs": 0,
+      "interrupted": true
+    }
+  },
+  {
+    "name": "a completed timer waits for a voluntary break",
+    "steps": [
+      {
+        "op": "start",
+        "mono": 0,
+        "wall": 1000000,
+        "options": {
+          "id": "shared",
+          "task": "Write a paragraph",
+          "mode": "deep",
+          "durationMs": 60000
+        }
+      },
+      {
+        "op": "tick",
+        "mono": 10000,
+        "wall": 1010000
+      },
+      {
+        "op": "tick",
+        "mono": 20000,
+        "wall": 1020000
+      },
+      {
+        "op": "tick",
+        "mono": 30000,
+        "wall": 1030000
+      },
+      {
+        "op": "tick",
+        "mono": 40000,
+        "wall": 1040000
+      },
+      {
+        "op": "tick",
+        "mono": 50000,
+        "wall": 1050000
+      },
+      {
+        "op": "tick",
+        "mono": 60000,
+        "wall": 1060000
+      },
+      {
+        "op": "tick",
+        "mono": 70000,
+        "wall": 1070000
+      }
+    ],
+    "expected": {
+      "phase": "breakReady",
+      "remainingMs": 0,
+      "focusElapsedMs": 60000,
+      "breakElapsedMs": 0
+    }
+  },
+  {
+    "name": "a completed timer can be finished without taking a break",
+    "steps": [
+      {
+        "op": "start",
+        "mono": 0,
+        "wall": 1000000,
+        "options": {
+          "id": "shared",
+          "task": "Write a paragraph",
+          "mode": "deep",
+          "durationMs": 60000
+        }
+      },
+      {
+        "op": "tick",
+        "mono": 10000,
+        "wall": 1010000
+      },
+      {
+        "op": "tick",
+        "mono": 20000,
+        "wall": 1020000
+      },
+      {
+        "op": "tick",
+        "mono": 30000,
+        "wall": 1030000
+      },
+      {
+        "op": "tick",
+        "mono": 40000,
+        "wall": 1040000
+      },
+      {
+        "op": "tick",
+        "mono": 50000,
+        "wall": 1050000
+      },
+      {
+        "op": "tick",
+        "mono": 60000,
+        "wall": 1060000
+      },
+      {
+        "op": "finish",
+        "mono": 60000,
+        "wall": 1060000
+      }
+    ],
+    "expected": {
+      "phase": "complete",
+      "focusElapsedMs": 60000,
+      "breakElapsedMs": 0
+    }
+  },
+  {
+    "name": "early finish is allowed without any success condition",
+    "steps": [
+      {
+        "op": "start",
+        "mono": 0,
+        "wall": 1000000,
+        "options": {
+          "id": "shared",
+          "task": "Write a paragraph",
+          "mode": "deep",
+          "durationMs": 60000
+        }
+      },
+      {
+        "op": "finish",
+        "mono": 6000,
+        "wall": 1006000
+      }
+    ],
+    "expected": {
+      "phase": "complete",
+      "focusElapsedMs": 6000,
+      "breakElapsedMs": 0
+    }
+  },
+  {
+    "name": "a standalone break counts only its unpaused time",
+    "steps": [
+      {
+        "op": "break",
+        "mono": 0,
+        "wall": 1000000,
+        "id": "rest",
+        "durationMs": 20000
+      },
+      {
+        "op": "tick",
+        "mono": 3000,
+        "wall": 1003000
+      },
+      {
+        "op": "pause",
+        "mono": 3000,
+        "wall": 1003000
+      },
+      {
+        "op": "tick",
+        "mono": 40000,
+        "wall": 1040000
+      },
+      {
+        "op": "resume",
+        "mono": 40000,
+        "wall": 1040000
+      },
+      {
+        "op": "tick",
+        "mono": 42000,
+        "wall": 1042000
+      }
+    ],
+    "expected": {
+      "phase": "break",
+      "remainingMs": 15000,
+      "focusElapsedMs": 0,
+      "breakElapsedMs": 5000
+    }
+  },
+  {
+    "name": "breaks can be escaped immediately",
+    "steps": [
+      {
+        "op": "break",
+        "mono": 0,
+        "wall": 1000000,
+        "id": "rest",
+        "durationMs": 20000
+      },
+      {
+        "op": "finish",
+        "mono": 1500,
+        "wall": 1001500
+      }
+    ],
+    "expected": {
+      "phase": "complete",
+      "focusElapsedMs": 0,
+      "breakElapsedMs": 1500
+    }
+  },
+  {
+    "name": "an early voluntary break retains prior work time",
+    "steps": [
+      {
+        "op": "start",
+        "mono": 0,
+        "wall": 1000000,
+        "options": {
+          "id": "shared",
+          "task": "Write a paragraph",
+          "mode": "deep",
+          "durationMs": 60000
+        }
+      },
+      {
+        "op": "break",
+        "mono": 5000,
+        "wall": 1005000,
+        "id": "unused",
+        "durationMs": 20000
+      },
+      {
+        "op": "finish",
+        "mono": 10000,
+        "wall": 1010000
+      }
+    ],
+    "expected": {
+      "phase": "complete",
+      "id": "shared",
+      "focusElapsedMs": 5000,
+      "breakElapsedMs": 5000
+    }
+  },
+  {
+    "name": "recovery is paused and does not count restart time",
+    "steps": [
+      {
+        "op": "start",
+        "mono": 0,
+        "wall": 1000000,
+        "options": {
+          "id": "shared",
+          "task": "Write a paragraph",
+          "mode": "deep",
+          "durationMs": 60000
+        }
+      },
+      {
+        "op": "tick",
+        "mono": 5000,
+        "wall": 1005000
+      },
+      {
+        "op": "restore",
+        "mono": 5000,
+        "wall": 1005000
+      },
+      {
+        "op": "tick",
+        "mono": 10000,
+        "wall": 1010000
+      }
+    ],
+    "expected": {
+      "phase": "paused",
+      "remainingMs": 55000,
+      "focusElapsedMs": 5000,
+      "interrupted": true
+    }
+  },
+  {
+    "name": "reset clears the session and its times",
+    "steps": [
+      {
+        "op": "start",
+        "mono": 0,
+        "wall": 1000000,
+        "options": {
+          "id": "shared",
+          "task": "Write a paragraph",
+          "mode": "deep",
+          "durationMs": 60000
+        }
+      },
+      {
+        "op": "tick",
+        "mono": 3000,
+        "wall": 1003000
+      },
+      {
+        "op": "reset",
+        "mono": 3000,
+        "wall": 1003000
+      }
+    ],
+    "expected": {
+      "phase": "idle",
+      "id": null,
+      "task": "",
+      "focusElapsedMs": 0,
+      "breakElapsedMs": 0
+    }
+  }
+]
