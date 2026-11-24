@@ -1,13 +1,25 @@
 // Linux WebKitGTK + real Tauri/Rust IPC smoke. This is a headless native UI
 // test, not a GNOME/Wayland permission, hardware, accessibility, or soak test.
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
+import {
+  mkdir,
+  readFile,
+  writeFile,
+  readdir,
+  mkdtemp,
+  rename,
+  rmdir,
+  stat,
+} from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import assert from 'node:assert/strict';
+import { nativeScripts } from './webdriver-scripts.mjs';
 
 const output = resolve('.cache/native-smoke');
 await mkdir(output, { recursive: true });
+const profile = await mkdtemp(join(output, 'profile-'));
+let workspacePath;
 const application = resolve(process.argv[2] || 'target/release/focus-desktop');
 const base = 'http://127.0.0.1:4444';
 let session;
@@ -16,9 +28,9 @@ let checks = 0;
 const driver = spawn('tauri-driver', ['--port', '4444'], {
   env: {
     ...process.env,
-    XDG_DATA_HOME: join(output, 'data'),
-    XDG_CONFIG_HOME: join(output, 'config'),
-    XDG_CACHE_HOME: join(output, 'cache'),
+    XDG_DATA_HOME: join(profile, 'data'),
+    XDG_CONFIG_HOME: join(profile, 'config'),
+    XDG_CACHE_HOME: join(profile, 'cache'),
     WEBKIT_DISABLE_DMABUF_RENDERER: '1',
     LIBGL_ALWAYS_SOFTWARE: '1',
   },
@@ -59,8 +71,7 @@ async function wait(run, label, timeout = 30_000) {
 }
 const execute = (script, args = []) =>
   request(`/session/${session}/execute/sync`, 'POST', { script, args });
-const text = (selector) =>
-  execute('return document.querySelector(arguments[0])?.textContent || ""', [selector]);
+const text = (selector) => execute(nativeScripts.text, [selector]);
 const element = async (selector) => {
   const value = await wait(
     () =>
@@ -80,19 +91,9 @@ const fill = async (selector, value) => {
   });
 };
 const button = async (label, scope = '') => {
-  const found = await wait(
-    () =>
-      execute(
-        'const root = arguments[1] ? document.querySelector(arguments[1]) : document; return root && [...root.querySelectorAll("button")].some(b => b.textContent.trim() === arguments[0] && !b.disabled);',
-        [label, scope],
-      ),
-    label,
-  );
+  const found = await wait(() => execute(nativeScripts.hasButton, [label, scope]), label);
   assert(found);
-  await execute(
-    'const root = arguments[1] ? document.querySelector(arguments[1]) : document; [...root.querySelectorAll("button")].find(b => b.textContent.trim() === arguments[0] && !b.disabled).click();',
-    [label, scope],
-  );
+  await execute(nativeScripts.clickButton, [label, scope]);
 };
 async function check(name, run) {
   await run();
@@ -132,9 +133,7 @@ try {
     await button('Begin session', '.modal');
     await wait(
       async () =>
-        !!(await execute(
-          'return !!document.querySelector("button[aria-label=\"Pause session\"]")',
-        )),
+        !!(await execute(nativeScripts.hasSelector, ['button[aria-label="Pause session"]'])),
       'running session',
     );
     await sleep(2200);
@@ -152,13 +151,14 @@ try {
     async () => {
       const path = await wait(
         async () =>
-          (await files(join(output, 'data'))).find((file) => file.endsWith('/workspace-v1.json')),
+          (await files(join(profile, 'data'))).find((file) => file.endsWith('/workspace-v1.json')),
         'native workspace file',
       );
       const saved = await wait(async () => {
         const data = JSON.parse(await readFile(path, 'utf8'));
         return data.checkpoint?.phase === 'paused' ? data : null;
       }, 'paused native checkpoint');
+      workspacePath = path;
       assert.equal(saved.checkpoint.task, 'Native smoke fixture');
       assert.deepEqual(Object.keys(saved).sort(), [
         'checkpoint',
@@ -168,16 +168,14 @@ try {
         'settings',
       ]);
       assert(!/cameraFrames|landmarks|rhythmBaseline|apiKey|chat/.test(JSON.stringify(saved)));
-      await execute('window.location.reload(); return true;');
+      await execute(nativeScripts.reload);
       await wait(
         async () => (await text('.runtime-badge')).includes('Desktop · Rust'),
         'native reload',
       );
       await wait(
         async () =>
-          !!(await execute(
-            'return !!document.querySelector("button[aria-label=\"Resume session\"]")',
-          )),
+          !!(await execute(nativeScripts.hasSelector, ['button[aria-label="Resume session"]'])),
         'live Rust engine remains paused after renderer reload',
       );
     },
@@ -194,8 +192,7 @@ try {
     await button('Make room for rest');
     await button('Begin break', '.modal');
     await wait(
-      async () =>
-        !!(await execute('return !!document.querySelector("button[aria-label=\"End break\"]")')),
+      async () => !!(await execute(nativeScripts.hasSelector, ['button[aria-label="End break"]'])),
       'chosen break',
     );
     await click('button[aria-label="End break"]');
@@ -203,6 +200,30 @@ try {
       async () => (await text('.session-card')).includes('Start focus'),
       'voluntary break exit',
     );
+  });
+  await check('a real close-time storage failure keeps the window escapable', async () => {
+    assert(workspacePath);
+    await sleep(600);
+    const backup = `${workspacePath}.test-backup`;
+    await rename(workspacePath, backup);
+    await mkdir(workspacePath);
+    try {
+      // Trigger the normal, capability-checked window close IPC, equivalent to
+      // the native close control. No app-specific automation command exists.
+      await execute(nativeScripts.requestClose);
+      await wait(
+        async () => (await text('.modal h2')).includes('Your last changes aren’t saved yet'),
+        'close failure dialog',
+      );
+      assert((await stat(workspacePath)).isDirectory());
+      assert.equal(JSON.parse(await readFile(backup, 'utf8')).schemaVersion, 1);
+      await button('Keep open', '.modal');
+      await wait(async () => !(await text('.modal')), 'close failure dismissed without exiting');
+      assert((await text('.error-banner')).includes('kept open'));
+    } finally {
+      await rmdir(workspacePath);
+      await rename(backup, workspacePath);
+    }
   });
   const screenshot = await request(`/session/${session}/screenshot`);
   await writeFile(join(output, 'native-window.png'), Buffer.from(screenshot, 'base64'));

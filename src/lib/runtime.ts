@@ -62,6 +62,16 @@ export const runtime = {
     if (desktop) await invoke('save_workspace', { data });
     else saveBrowser(data);
   },
+  async requestClose(): Promise<void> {
+    if (!desktop) return;
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    await getCurrentWindow().close();
+  },
+  async forceClose(): Promise<void> {
+    if (!desktop) return;
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    await getCurrentWindow().destroy();
+  },
   async onCloseRequested(
     prepare: () => Promise<boolean>,
     failed: (message: string) => void,

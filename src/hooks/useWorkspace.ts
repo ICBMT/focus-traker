@@ -24,6 +24,7 @@ export function useWorkspace() {
   const [ready, setReady] = useState(false);
   const [canSave, setCanSave] = useState(false);
   const [error, setError] = useState('');
+  const [closeBlocked, setCloseBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recovery, setRecovery] = useState<SessionSnapshot | null>(null);
   const recoveryRef = useRef<SessionSnapshot | null>(null);
@@ -280,6 +281,7 @@ export function useWorkspace() {
     }
     commandBusy.current = true;
     savingPaused.current = true;
+    closeNeedsSave.current ||= canSave;
     saveRevision.current += 1;
     timerRevision.current += 1;
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -304,6 +306,7 @@ export function useWorkspace() {
       setError(
         'Focus could not finish saving. The window was kept open and automatic writes are paused. Check storage, export your workspace, or retry closing.',
       );
+      setCloseBlocked(true);
       return false;
     } finally {
       savingPaused.current = false;
@@ -358,6 +361,23 @@ export function useWorkspace() {
     info,
     ready,
     canSave,
+    closeBlocked,
+    dismissCloseFailure: () => setCloseBlocked(false),
+    retryClose: () =>
+      runtime
+        .requestClose()
+        .catch(() => setError('The close request could not be sent. Your workspace remains open.')),
+    quitWithoutSaving: async () => {
+      window.dispatchEvent(new Event('focus:pause-sensors'));
+      void runtime.stopChat().catch(() => {});
+      await runtime
+        .forceClose()
+        .catch(() =>
+          setError(
+            'The window could not be closed. Use the operating system’s normal quit controls.',
+          ),
+        );
+    },
     error,
     setError,
     busy,

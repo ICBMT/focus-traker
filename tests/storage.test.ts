@@ -182,3 +182,42 @@ it('extracts work and break summaries exactly when they become terminal', () => 
     { id: 'a:break', durationMs: 3000, completed: false },
   ]);
 });
+
+describe('corrupt supported-version documents', () => {
+  it.each([
+    { schemaVersion: 1 },
+    { ...emptyWorkspace(), settings: { ...emptyWorkspace().settings, focusMinutes: 0 } },
+    { ...emptyWorkspace(), settings: { ...emptyWorkspace().settings, focusMinutes: 25.5 } },
+    { ...emptyWorkspace(), intentions: [intention('same'), intention('same')] },
+    { ...emptyWorkspace(), sessions: [{ ...record('bad'), durationMs: -1 }] },
+    { ...emptyWorkspace(), checkpoint: { id: 'broken' } },
+    { ...emptyWorkspace(), unexpectedFutureField: true },
+  ])('does not silently overwrite a corrupt v1 document: %j', (document) => {
+    const original = JSON.stringify(document);
+    localStorage.setItem(STORAGE_KEY, original);
+    expect(loadBrowserWorkspace(NOW)).toMatchObject({ readOnly: true });
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(original);
+  });
+  it('accepts a valid document independently of JSON property order', () => {
+    const data = {
+      checkpoint: null,
+      sessions: [],
+      intentions: [intention('i')],
+      settings: emptyWorkspace().settings,
+      schemaVersion: 1,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    expect(loadBrowserWorkspace(NOW)).toEqual({ data });
+  });
+  it('permits only intentional retention and history-opt-out cleanup', () => {
+    const data = {
+      ...emptyWorkspace(),
+      sessions: [record('old', NOW - 31 * 86_400_000), record('recent')],
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    expect(loadBrowserWorkspace(NOW)).toEqual({ data: { ...data, sessions: [record('recent')] } });
+    data.settings.keepHistory = false;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    expect(loadBrowserWorkspace(NOW)).toEqual({ data: { ...data, sessions: [] } });
+  });
+});

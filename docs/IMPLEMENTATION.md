@@ -12,15 +12,15 @@
 | Rest | Voluntary break UI and optional three-pair garden game | Exit does not require waiting or winning; no OS lock IPC |
 | Intentions | Add, complete/uncomplete, search, start, delete/undo; maximum 100 | Frontend and browser scenarios; no fabricated starter data |
 | History | Up to 30 days/500 local work/break summaries; voluntary four-choice reflection; actual-data daily/chart views | Runtime duration is not verified concentration; no sensor annotations |
-| Storage | Version-1 browser JSON or native app-data JSON, validation, debounced serialized writes, native randomized staged replacement; export/reset | Browser persistence/deletion tests pass. Expanded native file/lock/export tests await the current CI run. SQLite/encryption are not implemented |
+| Storage | Version-1 browser JSON or native app-data JSON, validation, debounced serialized writes, native randomized staged replacement; export/reset | Browser persistence/deletion/corrupt-v1 preservation tests pass. Native file/lock/export tests passed on all three OS jobs at 40a8870. SQLite/encryption are not implemented |
 | Recovery safety | Unreadable/unsupported workspaces are read-only rather than overwritten; pending writes invalidated on reset; no automatic feature restart | Regression tests for initialization failure, history-off, quick finish/start, stale polls, cancellation, deletion failure |
 | Camera | Explicit two-step opt-in foreground/visible lab preview; no audio, inference, recording, or uploads | Synthetic lifecycle tests: deliberate start, stop, denial, page-exit/late permission result. No real camera/WebView test |
 | Keyboard experiment | Own-pad key count and five coarse inter-press buckets; ignored repeats, bounded 30-second window; in-memory comparison sample | Rust/TS parity and accumulator tests; experimental thresholds, no field validation |
 | Mouse/trackpad experiment | Separately enabled own-pad move/click/scroll counts; optional separate editing-key count | Counts only. No trajectories or movement-style classifier. No global input/idle adapter |
-| Companion | Canned offline prompts plus native loopback-only Ollama discovery/chat implementation; optional explicit task context | Offline path tested; recent-context byte/UTF-16 bounds tested. Native client has not contacted a server here |
+| Companion | Canned offline prompts plus native loopback-only Ollama discovery/chat implementation; optional explicit task context | Offline path tested; recent-context byte/UTF-16 bounds tested. HTTP-mocked native calls pass; no live model server/benchmark here |
 | Notifications | Deterministic simulator: explicit urgent bypass, user-marked low deferral, lexical match, conservative uncertain allow, releasable examples | Synthetic/volatile only; zero real integrations, no OS interception or suppression |
-| Packaging | Desktop config, five generated icons, macOS usage text/entitlement, restrictive main-window command allowlist | Source/configuration only; native compile/sign/package validation is open |
-| Concurrent platforms | Linux, Windows, and macOS native jobs; Linux WebKit/Xvfb smoke; unsigned deb/AppImage/NSIS/universal-DMG packaging | Initial Linux/Windows native jobs passed at e125546, macOS cancelled; current exact-commit outcomes live in Actions. No physical-device matrix is passed |
+| Packaging | Desktop config, five generated icons, macOS usage text/entitlement, restrictive main-window command allowlist | Native compile and unsigned Windows/macOS package jobs pass at 40a8870; Linux package build passed but its smoke test failed. Signing/device validation is open |
+| Concurrent platforms | Linux, Windows, and macOS native jobs; Linux WebKit/Xvfb smoke; unsigned deb/AppImage/NSIS/universal-DMG packaging | 40a8870: all OS Rust tests/clippy passed; Windows/macOS installers uploaded; Linux packaging passed but smoke hit a harness quoting error. Follow-up outcomes live in Actions. No physical-device matrix is passed |
 | Release preparation | MIT license, pinned CI actions, npm/Cargo notices, in-app licenses, exact-commit/artifact integrity gates, protected signing workflow | Signing identities, required reviewers, physical QA, and system-library legal review must be configured/approved by the owner |
 
 ## Runtime and security boundaries
@@ -39,7 +39,7 @@
 - Focus/break elapsed time includes only unpaused time the engine actually observes. A gap **greater than 15 seconds**, backwards monotonic movement, or a large wall-clock change pauses the session. These are conservative interruption rules, not idle or attention detection.
 - The browser adapter ticks when observed; browser throttling can therefore pause it. The native host includes an independent one-second Rust tick, but suspend/lock/long-run behavior still needs device tests.
 - Timer expiry sets `breakReady`; it does not start a break. The user can take a break or finish without one.
-- Settings/history writes debounce by approximately 300 ms; active checkpoints are approximately every 15 seconds and at phase changes. Native window close pauses/stops and waits for the final save; failure keeps the window open. Browser pagehide flushes synchronously before releasing its lock. Force-quit, OS termination, in-flight browser commands, and failed storage can still lose recent changes; this is not guaranteed crash durability.
+- Settings/history writes debounce by approximately 300 ms; active checkpoints are approximately every 15 seconds and at phase changes. Native window close pauses/stops and waits for the final save; failure keeps the window open and offers keep/retry/explicit unsaved quit. The failure dialog suppresses nested dialogs without deleting their drafts. Browser pagehide flushes synchronously before releasing its lock. Force-quit, OS termination, in-flight browser commands, and failed storage can still lose recent changes; this is not guaranteed crash durability.
 - Daily totals/charts group each summary by its local session-start date; paused segments and cross-midnight sessions are not split into fabricated continuous intervals.
 - Turning history off clears summary records. An active task checkpoint may still be saved for recovery. Re-enabling history does not resurrect already-processed terminal records from the live snapshot.
 - Storage is plaintext, not encrypted. Exclusive process/tab ownership prevents competing saved-data writers. Import/SQLite migration and independent background checkpoint persistence remain open work.
@@ -50,21 +50,22 @@
 | --- | --- |
 | TypeScript strict typecheck | Passed |
 | Production Vite web build | Passed |
-| Frontend/domain/component regression suite | 112 passed across 8 test files |
+| Frontend/domain/component regression suite | 127 passed across 8 test files |
 | Rust domain core | 19 passed, including two contract tests replaying 12 session and 10 rhythm scenarios |
-| Release-integrity unit tests | 3 passed: exact commit/approval, artifact identity/hash, traversal/symlink/duplicate rejection |
-| Production-browser scenarios | 16 passed, including invalid-data reset, competing-tab rejection, and immediate pagehide flush |
+| Release/harness unit tests | 6 passed: 3 integrity/approval tests plus 3 exact WebDriver-program syntax/argument/lifecycle tests |
+| Production-browser scenarios | 17 passed, including invalid-data reset, exact corrupt-v1 preservation, competing-tab rejection, and immediate pagehide flush |
 | Accessibility scans | 32 screen/dialog states in light/dark; no selected WCAG A/AA rule violations reported by axe |
 | Browser widths | 390, 940, 1024, 1440 px checked for document overflow; native-minimum size 940×680 exercised as a browser viewport |
 | Browser runtime/network | No uncaught errors or third-party HTTP requests in tested scenarios; no real camera/model call |
 | Rust formatting | Parsed/formatted with rustfmt 1.99 toolchain; standard formatting check included |
 | Cargo dependency resolution | Root Cargo.lock generated from the official crates.io index via GitHub; registry sources/checksums preserved |
 | Initial remote native evidence | e125546: Linux/Windows workspace tests and executable builds passed; macOS cancelled |
-| Current native/packaging evidence | New lock/storage/HTTP mocks, native WebKit smoke, and installer builds await the exact-commit CI outcome; live model/hardware not tested |
+| Native-host unit tests | 40a8870: tests/clippy passed on Linux/Windows/macOS; Linux reports 19 core + 16 host (8 storage/8 AI). Full native host was compiled remotely, not in this sandbox |
+| Current native/packaging evidence | 40a8870: Windows NSIS and universal macOS DMG jobs succeeded; Linux packages built, but the launched-window smoke failed on injected selector quoting. Follow-up fixes the harness and adds a close-failure scenario; inspect its exact-commit Actions result. Live model/hardware not tested |
 | Native GUI, actual sensor capture, OS permissions, CPU/RAM, model speed/quality | **Not measured or validated** |
 | Signed publishing | Workflow is manual/fail-closed and draft-prerelease-only; credentials, protection rules, actual signatures/notarization have not been verified here |
 
-The sandbox started without Rust or the Linux desktop development stack. A temporary Rust 1.99 toolchain was obtained through npm-hosted toolchain packages. Because crate-download hosts are unavailable here, the core was checked through a temporary offline manifest using upstream GitHub sources at the **same versions as Cargo.lock**; disabled optional/test-only dependency edges in those temporary third-party manifests were stripped. Project domain sources and shared fixtures were used directly, not rewritten substitutes. The full host dependency graph was not compiled. New native source changes are delegated to the standard CI workspace tests, not inferred from the old offline harness. Temporary tools, vendored test dependencies, screenshots, build logs, and browser downloads stay under ignored `.cache/`/`dist`/`node_modules`, not Git.
+The sandbox started without Rust or the Linux desktop development stack. A temporary Rust 1.99 toolchain was obtained through npm-hosted toolchain packages. Because crate-download hosts are unavailable here, the core was checked through a temporary offline manifest using upstream GitHub sources at the **same versions as Cargo.lock**; disabled optional/test-only dependency edges in those temporary third-party manifests were stripped. Project domain sources and shared fixtures were used directly, not rewritten substitutes. The full host dependency graph was not compiled **locally**. Standard remote CI subsequently compiled and tested the workspace on Linux, Windows, and macOS at 40a8870; follow-up changes require their own exact-commit run, not an inference from the old offline harness. Temporary tools, vendored test dependencies, screenshots, build logs, and browser downloads stay under ignored `.cache/`/`dist`/`node_modules`, not Git.
 
 Automated accessibility success does not establish complete accessibility. Browser Chromium is not WebKitGTK, WebView2, or WKWebView. Synthetic camera tests are not permission, sensor-quality, minimized-capture, hardware, accuracy, or privacy-audit results.
 

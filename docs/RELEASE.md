@@ -26,6 +26,8 @@ Local builds require Node 22.12+, the pinned Rust toolchain, and Tauri's platfor
 npm ci
 npm run typecheck
 npm test
+npm run test:release
+npm run check:release
 npm run test:e2e
 cargo fmt --all -- --check
 cargo test --workspace --locked
@@ -38,7 +40,7 @@ No model weights, credentials, user data, development browser binaries, or test 
 
 ## Signed-public workflow — owner setup required
 
-`Signed release candidate` is manual, on this development branch, and uses the `release-signing` environment. Configure **required reviewers and protected-branch restrictions** on that environment before use. The preflight checks that required reviewers exist; inability to verify the environment fails closed. Create/protect the intended version tag at the exact approved commit first; publishing never silently creates or retargets a tag. Do not grant secrets to pull-request workflows. The workflow must validate an exact current commit and never publish a stable release automatically.
+`Signed release candidate` is manual and uses the `release-signing` environment. GitHub normally requires a dispatchable workflow to exist on the default branch before it can be manually run for a selected ref. Review/merge the workflow through the normal process first; this session does not change the default branch. Select the exact approved ref when dispatching. Configure **required reviewers and protected-branch restrictions** on that environment before use. The preflight checks that required reviewers exist; inability to verify the environment fails closed. Create/protect the intended version tag at the exact approved commit first; publishing never silently creates or retargets a tag. Do not grant secrets to pull-request workflows. The workflow must validate an exact current commit and never publish a stable release automatically.
 
 Configure secrets directly in repository/environment settings, not in chat:
 
@@ -67,6 +69,6 @@ The signed workflow checks secrets before building, signs Windows executables/in
 
 ## Evidence ledger
 
-For initial commit `e125546`, the remote workflow recorded successful web, Linux native source/test/build, and Windows native source/test/build jobs. macOS was cancelled. Those jobs produced executables, not installer or physical-device evidence. Later release-candidate work must record its own exact-commit results. See `IMPLEMENTATION.md` for local browser/core evidence; do not reuse an old green check as proof of a changed build.
+Run [45369370301](https://github.com/ICBMT/focus-traker/actions/runs/45369370301), commit `40a88700e403273575e6994f2b1cd1565db939ed`: web and all three native Rust test/clippy steps passed; Windows NSIS and universal macOS DMG jobs/artifact uploads passed. Linux deb/AppImage packaging passed but the real-window smoke failed on injected JavaScript selector quoting, so **the overall run failed** and no Linux installer artifact was uploaded. The follow-up passes selectors as W3C arguments, tests the exact scripts before deployment, and adds a real failed-save/close check. Require a fully successful checks run for the exact release commit; inspect Actions rather than treating a documented source fix as a passed smoke. No physical-device, signing, or publication gate is passed by that run. See `IMPLEMENTATION.md` for local browser/core evidence; do not reuse an old green check as proof of a changed build.
 
-**Still blocked until explicitly recorded:** owner signing-secret setup, physical-device QA, model performance/routing validation, bundled-system-library license review, and final public-release approval. This guide does not mark those gates passed.
+**Still blocked until explicitly recorded:** a fully successful exact-commit checks run, owner signing-secret/protected-environment setup (no configured `release-signing` environment was visible from this session), physical-device QA, model performance/routing validation, bundled-system-library license review, and final public-release approval. This guide does not mark those gates passed.

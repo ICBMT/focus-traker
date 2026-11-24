@@ -307,6 +307,44 @@ try {
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
 
+  await check(
+    'corrupt supported-version fields preserve the exact original until reset',
+    async () => {
+      const corrupt = JSON.stringify({
+        ...(await saved()),
+        settings: { ...(await saved()).settings, focusMinutes: 0 },
+        unknownField: 'Never silently discard the original',
+      });
+      await page.addInitScript((raw) => {
+        if (!sessionStorage.getItem('focus.test.corrupt-v1-seeded')) {
+          localStorage.setItem('focus.workspace.v1', raw);
+          sessionStorage.setItem('focus.test.corrupt-v1-seeded', 'true');
+        }
+      }, corrupt);
+      await page.reload();
+      await expect(page.getByRole('alert')).toContainText('fields failed validation');
+      await nav('Preferences');
+      await page.getByRole('button', { name: 'Dark', exact: true }).click();
+      await advance(1000);
+      expect(await page.evaluate(() => localStorage.getItem('focus.workspace.v1'))).toBe(corrupt);
+      await page.reload();
+      await expect(page.getByRole('alert')).toContainText('fields failed validation');
+      expect(await page.evaluate(() => localStorage.getItem('focus.workspace.v1'))).toBe(corrupt);
+      await nav('Preferences');
+      await page.getByRole('button', { name: 'Privacy & data', exact: true }).click();
+      await expect(page.getByText('Temporary / read-only', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Delete all data', exact: true }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Delete all data', exact: true })
+        .click();
+      await advance(500);
+      expect((await saved()).settings.focusMinutes).toBe(25);
+      expect((await saved()).unknownField).toBeUndefined();
+      await expect(page.getByRole('alert')).toHaveCount(0);
+    },
+  );
+
   await check('a second browser tab cannot overwrite the editing workspace', async () => {
     const second = await context.newPage();
     second.on('pageerror', (error) => errors.push(error.message));

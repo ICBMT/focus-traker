@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef } from 'react';
+import { createContext, useContext, useId, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUpRight, Leaf, X } from 'lucide-react';
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
@@ -70,19 +70,22 @@ export function Pill({
     </span>
   );
 }
-export function Modal({
-  title,
-  children,
-  onClose,
-  eyebrow,
-  className = '',
-}: {
+// A failed native close must take precedence over every dialog, including
+// dialogs owned by nested pages. Suppression unmounts their focus/keyboard
+// surface without discarding the parent's draft/consent state.
+export const ModalSuppressionContext = createContext(false);
+type ModalProps = {
   title: string;
   children: ReactNode;
   onClose: () => void;
   eyebrow?: string;
   className?: string;
-}) {
+};
+export function Modal({ priority = false, ...props }: ModalProps & { priority?: boolean }) {
+  const suppressed = useContext(ModalSuppressionContext);
+  return suppressed && !priority ? null : <ModalSurface {...props} />;
+}
+function ModalSurface({ title, children, onClose, eyebrow, className = '' }: ModalProps) {
   const id = useId();
   const container = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);

@@ -1,5 +1,6 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import App from '../src/App';
 import { useWorkspace } from '../src/hooks/useWorkspace';
 import { emptySession, emptyWorkspace } from '../src/core/types';
 import type { SessionSnapshot } from '../src/core/types';
@@ -18,6 +19,8 @@ const adapter = vi.hoisted(() => ({
   stopChat: vi.fn(),
   onCloseRequested: vi.fn(),
   onPageHide: vi.fn(),
+  requestClose: vi.fn(),
+  forceClose: vi.fn(),
 }));
 vi.mock('../src/lib/runtime', () => ({ runtime: adapter }));
 const NOW = Date.UTC(2026, 10, 19, 9);
@@ -58,6 +61,8 @@ beforeEach(() => {
   adapter.stopChat.mockResolvedValue(undefined);
   adapter.onCloseRequested.mockResolvedValue(() => {});
   adapter.onPageHide.mockReturnValue(() => {});
+  adapter.requestClose.mockResolvedValue(undefined);
+  adapter.forceClose.mockResolvedValue(undefined);
   adapter.pause.mockResolvedValue(emptySession());
   adapter.reset.mockResolvedValue(emptySession());
   adapter.start.mockResolvedValue(active());
@@ -248,6 +253,8 @@ describe('close-time data safety', () => {
     adapter.save.mockRejectedValueOnce(new Error('Disk full'));
     await act(async () => expect(await requestClose()).toBe(false));
     expect(result.current.error).toContain('kept open');
+    expect(result.current.closeBlocked).toBe(true);
+    expect(adapter.forceClose).not.toHaveBeenCalled();
     expect(result.current.data.sessions).toHaveLength(1);
     expect(result.current.canSave).toBe(false);
     await act(async () => expect(await requestClose()).toBe(true));
@@ -294,5 +301,93 @@ describe('close-time data safety', () => {
     });
     expect(adapter.pause).not.toHaveBeenCalled();
     expect(result.current.error).toContain('current action');
+  });
+});
+
+it('requires an explicit user action to quit without saving after a failed close', async () => {
+  adapter.pause.mockRejectedValueOnce(new Error('Engine unavailable'));
+  const { result } = renderHook(() => useWorkspace());
+  await flush();
+  await act(async () => expect(await adapter.onCloseRequested.mock.calls.at(-1)![0]()).toBe(false));
+  expect(adapter.forceClose).not.toHaveBeenCalled();
+  expect(result.current.closeBlocked).toBe(true);
+  await act(async () => {
+    await result.current.retryClose();
+  });
+  expect(adapter.requestClose).toHaveBeenCalledOnce();
+  await act(async () => {
+    await result.current.quitWithoutSaving();
+  });
+  expect(adapter.forceClose).toHaveBeenCalledOnce();
+});
+it('retries the final save after an engine failure rather than treating it as a read-only close', async () => {
+  adapter.pause.mockRejectedValueOnce(new Error('Temporary engine failure'));
+  renderHook(() => useWorkspace());
+  await flush();
+  await act(async () => expect(await adapter.onCloseRequested.mock.calls.at(-1)![0]()).toBe(false));
+  await act(async () => expect(await adapter.onCloseRequested.mock.calls.at(-1)![0]()).toBe(true));
+  expect(adapter.save).toHaveBeenCalledOnce();
+});
+
+describe('failed-close user controls', () => {
+  const failClose = async () => {
+    adapter.save.mockRejectedValueOnce(new Error('Disk unavailable'));
+    await act(async () => {
+      expect(await adapter.onCloseRequested.mock.calls.at(-1)![0]()).toBe(false);
+    });
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(
+      screen.getByRole('dialog', { name: 'Your last changes aren’t saved yet' }),
+    ).toBeVisible();
+    expect(adapter.forceClose).not.toHaveBeenCalled();
+  };
+  const open = async () => {
+    render(
+      <div id="root">
+        <App />
+      </div>,
+    );
+    await flush();
+  };
+  it.each(['Keep open', 'Escape'])(
+    '%s dismisses the failure safely, even over a nested preferences dialog',
+    async (action) => {
+      await open();
+      fireEvent.click(screen.getByRole('button', { name: 'Your preferences' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Privacy & data' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delete all data' }));
+      expect(screen.getByRole('dialog', { name: 'A completely fresh start?' })).toBeVisible();
+      await failClose();
+      expect(screen.queryByRole('dialog', { name: 'A completely fresh start?' })).toBeNull();
+      if (action === 'Escape') fireEvent.keyDown(document, { key: 'Escape' });
+      else fireEvent.click(screen.getByRole('button', { name: action }));
+      expect(
+        screen.queryByRole('dialog', { name: 'Your last changes aren’t saved yet' }),
+      ).toBeNull();
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      expect(screen.getByRole('dialog', { name: 'A completely fresh start?' })).toBeVisible();
+      expect(adapter.forceClose).not.toHaveBeenCalled();
+      expect(adapter.reset).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Keep my data' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.getElementById('root')!.inert).toBe(false);
+      expect(document.body.style.overflow).not.toBe('hidden');
+    },
+  );
+  it('the Retry button sends a normal close request, not a forced exit', async () => {
+    await open();
+    await failClose();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry save & close' }));
+    await flush();
+    expect(adapter.requestClose).toHaveBeenCalledOnce();
+    expect(adapter.forceClose).not.toHaveBeenCalled();
+  });
+  it('the explicit Quit without saving button alone permits the forced exit', async () => {
+    await open();
+    await failClose();
+    fireEvent.click(screen.getByRole('button', { name: 'Quit without saving' }));
+    await flush();
+    expect(adapter.forceClose).toHaveBeenCalledOnce();
+    expect(adapter.requestClose).not.toHaveBeenCalled();
   });
 });

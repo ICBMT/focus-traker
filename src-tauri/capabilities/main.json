@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "core:window:allow-destroy",
+    "core:window:allow-close",
     "allow-runtime-info",
     "allow-load-workspace",
     "allow-save-workspace",

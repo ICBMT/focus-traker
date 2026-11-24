@@ -42,7 +42,7 @@ import Notifications from './components/Notifications';
 import Preferences from './components/Settings';
 import Coach from './components/Coach';
 import RestGarden from './components/RestGarden';
-import { Button, IconButton, Modal } from './components/ui';
+import { Button, IconButton, Modal, ModalSuppressionContext } from './components/ui';
 
 type Dialog = 'start' | 'intention' | 'break' | 'finish' | 'search' | 'checkIn' | null;
 type SettingsTab = 'general' | 'ai' | 'privacy' | 'about';
@@ -209,7 +209,7 @@ export default function App() {
   const changeAi = (patch: Partial<AiConnection>) => setAi((old) => ({ ...old, ...patch }));
   const sourceTitle = pages.find((p) => p.id === page)?.label ?? 'Overview';
 
-  return (
+  const content = (
     <div className={`app-shell ${mobileNav ? 'nav-open' : ''}`}>
       <a className="skip-link" href="#main-content">
         Skip to workspace
@@ -528,7 +528,32 @@ export default function App() {
           </button>
         </footer>
       </div>
-      {dialog && (
+      {app.closeBlocked && (
+        <Modal
+          priority
+          title="Your last changes aren’t saved yet"
+          eyebrow="FOCUS IS STILL OPEN"
+          onClose={app.dismissCloseFailure}
+        >
+          <p className="modal-description">
+            Check available storage and retry, or keep the app open and export a copy. You can also
+            quit without saving the latest changes. The previous saved workspace has not been
+            intentionally removed.
+          </p>
+          <div className="modal-actions">
+            <Button variant="ghost" onClick={app.dismissCloseFailure}>
+              Keep open
+            </Button>
+            <Button variant="secondary" onClick={() => void app.quitWithoutSaving()}>
+              Quit without saving
+            </Button>
+            <Button disabled={app.busy} onClick={() => void app.retryClose()}>
+              Retry save & close
+            </Button>
+          </div>
+        </Modal>
+      )}
+      {dialog && !app.closeBlocked && (
         <Modal
           title={
             dialog === 'start'
@@ -917,7 +942,7 @@ export default function App() {
           )}
         </Modal>
       )}
-      {app.ready && app.recovery && recoveryVisible && (
+      {app.ready && app.recovery && recoveryVisible && !app.closeBlocked && (
         <Modal
           title="Pick up where you left off?"
           eyebrow="A SESSION WAS INTERRUPTED"
@@ -938,7 +963,7 @@ export default function App() {
           </div>
         </Modal>
       )}
-      {coach && (
+      {coach && !app.closeBlocked && (
         <Coach
           ai={ai}
           task={app.session.task}
@@ -949,7 +974,7 @@ export default function App() {
           }}
         />
       )}
-      {garden && <RestGarden onClose={() => setGarden(false)} />}
+      {garden && !app.closeBlocked && <RestGarden onClose={() => setGarden(false)} />}
       {toast && (
         <div className="toast" role="status">
           <span className="toast-icon">
@@ -967,5 +992,10 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+  return (
+    <ModalSuppressionContext.Provider value={app.closeBlocked}>
+      {content}
+    </ModalSuppressionContext.Provider>
   );
 }

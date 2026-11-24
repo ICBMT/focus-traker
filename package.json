@@ -21,7 +21,7 @@
     "licenses:generate": "node scripts/licenses.mjs",
     "check:release": "node scripts/release-check.mjs",
     "predev": "node scripts/licenses.mjs",
-    "test:release": "node --test scripts/release.test.mjs"
+    "test:release": "node --test scripts/release.test.mjs scripts/webdriver.test.mjs"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.3.0",

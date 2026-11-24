@@ -98,7 +98,26 @@ export function parseWorkspace(raw: unknown, now = Date.now()): Workspace {
   return fallback;
 }
 
-export function loadBrowserWorkspace(): { data: Workspace; warning?: string; readOnly?: boolean } {
+function equivalentJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a))
+    return (
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((value, i) => equivalentJson(value, b[i]))
+    );
+  if (!object(a) || !object(b)) return false;
+  const keys = Object.keys(a);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((key) => Object.hasOwn(b, key) && equivalentJson(a[key], b[key]))
+  );
+}
+export function loadBrowserWorkspace(now = Date.now()): {
+  data: Workspace;
+  warning?: string;
+  readOnly?: boolean;
+} {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw === null) return { data: emptyWorkspace() };
@@ -116,7 +135,32 @@ export function loadBrowserWorkspace(): { data: Workspace; warning?: string; rea
           'This saved workspace has an invalid or unsupported format. It has not been modified; this session is temporary.',
         readOnly: true,
       };
-    return { data: parseWorkspace(parsed) };
+    const data = parseWorkspace(parsed, now);
+    // Parsing is intentionally tolerant for explicit sanitization/export. Loading
+    // must be stricter: never autosave repaired defaults over a corrupt v1 file.
+    // Retention and the explicit history opt-out are the only silent removals.
+    const expected = { ...parsed };
+    if (Array.isArray(parsed.sessions) && object(parsed.settings))
+      expected.sessions =
+        parsed.settings.keepHistory === false
+          ? []
+          : parsed.sessions.filter(
+              (record) =>
+                !(object(record) && boundedInteger(record.startedAt, 0, now - 30 * 86_400_000 - 1)),
+            );
+    if (
+      object(parsed.checkpoint) &&
+      boundedInteger(parsed.checkpoint.startedAt, 0, now - 30 * 86_400_000 - 1)
+    )
+      expected.checkpoint = null;
+    if (!equivalentJson(data, expected))
+      return {
+        data,
+        readOnly: true,
+        warning:
+          'Saved workspace fields failed validation. The original has not been modified; this session is temporary. Export a recovered copy or explicitly reset it.',
+      };
+    return { data };
   } catch {
     return {
       data: emptyWorkspace(),
