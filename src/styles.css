@@ -4900,3 +4900,33 @@ body.companion-window #root {
     gap: 9px;
   }
 }
+
+/* Match the existing settings-row gutters for the companion's explanatory
+   content and keep the sharing warning readable at desktop and narrow sizes. */
+.companion-settings-card > .companion-capability,
+.companion-settings-card > .screen-consent-summary,
+.companion-settings-card > .screen-observation,
+.companion-settings-card > .inline-warning {
+  margin-left: 24px;
+  margin-right: 24px;
+}
+.companion-settings-card > .settings-explainer {
+  margin: 14px 24px;
+}
+.companion-settings-card > .settings-explainer:last-child {
+  margin-bottom: 24px;
+}
+.companion-settings-card > .button {
+  margin: 0 24px 24px;
+}
+@media (max-width: 600px) {
+  .companion-settings-card > .companion-capability,
+  .companion-settings-card > .screen-consent-summary,
+  .companion-settings-card > .screen-observation,
+  .companion-settings-card > .inline-warning,
+  .companion-settings-card > .settings-explainer,
+  .companion-settings-card > .button {
+    margin-left: 19px;
+    margin-right: 19px;
+  }
+}

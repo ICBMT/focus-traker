@@ -37,7 +37,7 @@ export default function CompanionSettings({
   const isLinux = info.kind === 'desktop' && info.platform === 'linux';
   return (
     <>
-      <section className="card settings-card">
+      <section className="card settings-card companion-settings-card">
         <div className="card-heading">
           <div>
             <h2>A little company, out of the way</h2>
@@ -149,7 +149,7 @@ export default function CompanionSettings({
           </p>
         )}
       </section>
-      <section className="card settings-card">
+      <section className="card settings-card companion-settings-card">
         <div className="card-heading">
           <div>
             <h2>Context, only with your permission</h2>
@@ -160,9 +160,10 @@ export default function CompanionSettings({
         <div className="screen-consent-summary">
           <ShieldCheck size={21} />
           <p>
-            Choose one window or monitor in the OS sharing dialog. While your work timer runs, at
-            most one reduced-resolution image every 90 seconds goes to your chosen vision model. No
-            audio, saved screenshots, OCR archive, or hidden capture fallback.
+            Choose one window or monitor in the OS sharing dialog. The OS keeps a live share open;
+            the worker reduces its output to about 1 fps. During active work, at most one image
+            every 90 seconds goes to your chosen vision model. No audio, saved screenshots, OCR
+            archive, or hidden capture fallback.
           </p>
         </div>
         <div className="setting-row">

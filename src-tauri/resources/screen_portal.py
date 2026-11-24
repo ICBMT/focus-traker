@@ -54,7 +54,7 @@ def main():
         wait = GLib.MainLoop()
         answer = []
 
-        def response(_bus, _sender, _path, _interface, _signal, parameters):
+        def response(_bus, _sender, _path, _interface, _signal, parameters, *_user_data):
             answer.append(parameters.unpack())
             wait.quit()
 
@@ -74,7 +74,7 @@ def main():
             if GLib.MainContext.default().find_source_by_id(timeout):
                 GLib.source_remove(timeout)
 
-    def locked(_bus, _sender, _path, _interface, _signal, parameters):
+    def locked(_bus, _sender, _path, _interface, _signal, parameters, *_user_data):
         if parameters.unpack()[0]:
             stop()
             # During a nested portal chooser, also quit its request loop by
@@ -91,7 +91,7 @@ def main():
 
     # Register before the nested chooser loop too: a parent crash must not
     # leave a permission dialog/capture worker waiting to be granted later.
-    def parent_gone(_source, _condition):
+    def parent_gone(_source, _condition, *_user_data):
         os._exit(0)
     parent_watch = GLib.io_add_watch(sys.stdin.fileno(), GLib.IO_HUP | GLib.IO_ERR, parent_gone)
 
@@ -121,7 +121,7 @@ def main():
         if pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
             raise RuntimeError("stream")
 
-        def command(_source, condition):
+        def command(_source, condition, *_user_data):
             if condition & (GLib.IO_HUP | GLib.IO_ERR):
                 return stop()
             line = sys.stdin.readline(32)
