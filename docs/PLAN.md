@@ -1,5 +1,7 @@
 # Focus Tracker — product and implementation plan
 
+**Release decisions (2026-11-19):** owner selected MIT licensing, signed public distribution, and Ubuntu/GNOME as the first physical-device target. Exact Ubuntu version/session and signing credentials remain unverified. Current scope/release gates are in [RELEASE.md](RELEASE.md).
+
 **Date:** 2026-11-19
 
 **Status:** overall direction and implementation authorized by the user on 2026-11-19, including the keyboard/mouse rhythm experiment. A portable foundation is now implemented; this approved plan covers a wider, partly unimplemented product. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for actual features/evidence. Native and sensor feasibility gates remain open.

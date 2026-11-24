@@ -1,0 +1,252 @@
+name: Signed release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Exact full commit SHA; must match the selected branch ref
+        required: true
+        type: string
+      tag:
+        description: Version tag, e.g. v0.1.0-rc.1 (always creates a draft prerelease)
+        required: true
+        type: string
+      native_qa_approved:
+        description: I reviewed physical-device native QA for this exact commit
+        required: true
+        type: boolean
+        default: false
+      licenses_approved:
+        description: I reviewed generated notices and bundled system/installer libraries
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: focus-signed-release
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.intent.outputs.version }}
+      tag: ${{ steps.intent.outputs.tag }}
+      revision: ${{ steps.intent.outputs.revision }}
+      checks-run: ${{ steps.intent.outputs.checks-run }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check:release
+      - run: npm run test:release
+      - id: intent
+        name: Exact commit, successful checks, and owner approvals
+        run: node scripts/release-preflight.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPROVED_COMMIT: ${{ inputs.commit }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          QA_APPROVED: ${{ inputs.native_qa_approved }}
+          LICENSES_APPROVED: ${{ inputs.licenses_approved }}
+
+  signed-build:
+    needs: preflight
+    environment: release-signing
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: linux-x86_64
+            bundles: deb,appimage
+            bundle-root: target/release/bundle
+          - os: windows-latest
+            target: windows-x86_64
+            bundles: nsis
+            bundle-root: target/release/bundle
+          - os: macos-latest
+            target: macos-universal
+            bundles: dmg
+            bundle-root: target/universal-apple-darwin/release/bundle
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    env:
+      CARGO_INCREMENTAL: '0'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.preflight.outputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: '1.99.0'
+          components: rustfmt
+      - name: Require Developer ID signing material (never ad-hoc fallback)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          for (const name of ['APPLE_CERTIFICATE','APPLE_CERTIFICATE_PASSWORD','APPLE_SIGNING_IDENTITY','APPLE_ID','APPLE_PASSWORD','APPLE_TEAM_ID']) assert(process.env[name]?.trim(), `Missing signing secret: ${name}`);
+          assert(process.env.APPLE_SIGNING_IDENTITY.startsWith('Developer ID Application:'), 'A Developer ID Application identity is required');
+          JS
+      - name: Linux native prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential file libwebkit2gtk-4.1-dev libgtk-3-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Both macOS architectures
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - run: npm ci
+      - run: npm run build
+      - run: cargo test --workspace --locked
+      - run: node scripts/licenses.mjs --rust
+      - run: npm run check:release -- --native
+      - name: Import authorized Windows certificate into ephemeral runner
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/windows-signing.ps1 -Mode Prepare
+        env:
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+      - name: Build Windows Authenticode-signed installer
+        if: runner.os == 'Windows'
+        run: npm run tauri -- build --ci --bundles nsis --config src-tauri/release-signing.generated.json
+      - name: Verify Windows application and installer identity/timestamps
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/windows-signing.ps1 -Mode Verify
+        env:
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+      - name: Build macOS Developer ID application and disk image
+        if: runner.os == 'macOS'
+        run: npm run tauri -- build --ci --bundles dmg --target universal-apple-darwin
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Verify macOS application and notarize/staple the disk image
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          APP='target/universal-apple-darwin/release/bundle/macos/Focus.app'
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          spctl --assess --type execute --verbose=2 "$APP"
+          xcrun stapler validate "$APP"
+          for DMG in target/universal-apple-darwin/release/bundle/dmg/*.dmg; do
+            xcrun notarytool submit "$DMG" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait --output-format json > "$RUNNER_TEMP/focus-notary-result.json"
+            node -e 'if(require(process.env.RUNNER_TEMP + "/focus-notary-result.json").status !== "Accepted") process.exit(1)'
+            xcrun stapler staple "$DMG"
+            xcrun stapler validate "$DMG"
+          done
+      - name: Build Linux packages (final integrity manifest is GPG signed)
+        if: runner.os == 'Linux'
+        run: npm run tauri -- build --ci --bundles deb,appimage
+      - name: Catalog only verified candidate packages
+        run: node scripts/package-artifacts.mjs ${{ matrix.bundle-root }} .cache/packages/${{ matrix.target }} ${{ matrix.target }} signed-candidate
+        env:
+          NATIVE_QA_APPROVED: ${{ inputs.native_qa_approved }}
+          PLATFORM_SIGNATURES_VERIFIED: 'true'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: focus-signed-${{ matrix.target }}
+          path: .cache/packages/${{ matrix.target }}/
+          if-no-files-found: error
+          retention-days: 1
+      - name: Remove ephemeral Windows signing material
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/windows-signing.ps1 -Mode Cleanup
+        env:
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+
+  assemble-draft:
+    needs: [preflight, signed-build]
+    environment: release-signing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.preflight.outputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: focus-signed-*
+          path: .cache/signed-input
+      - name: Bind artifacts to exact version/commit and include source/notices
+        run: node scripts/assemble-release.mjs .cache/signed-input .cache/release-output
+        env:
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+          CHECKS_RUN: ${{ needs.preflight.outputs.checks-run }}
+      - name: Sign and verify final integrity manifest
+        shell: bash
+        env:
+          RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          RELEASE_GPG_PASSPHRASE: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
+          RELEASE_GPG_FINGERPRINT: ${{ secrets.RELEASE_GPG_FINGERPRINT }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          for (const name of ['RELEASE_GPG_PRIVATE_KEY','RELEASE_GPG_PASSPHRASE','RELEASE_GPG_FINGERPRINT']) assert(process.env[name]?.trim(), `Missing integrity signing secret: ${name}`);
+          assert(/^(?:[A-Fa-f0-9]{40}|[A-Fa-f0-9]{64})$/.test(process.env.RELEASE_GPG_FINGERPRINT), 'Use the full expected primary signing-key fingerprint');
+          JS
+          export GNUPGHOME="$(mktemp -d)"
+          chmod 700 "$GNUPGHOME"
+          trap 'gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT
+          printf '%s' "$RELEASE_GPG_PRIVATE_KEY" | gpg --batch --import
+          ACTUAL_FINGERPRINT="$(gpg --batch --with-colons --list-secret-keys "$RELEASE_GPG_FINGERPRINT" | awk -F: '$1 == "fpr" { print $10; exit }')"
+          test "${ACTUAL_FINGERPRINT^^}" = "${RELEASE_GPG_FINGERPRINT^^}"
+          gpg --batch --armor --export "$RELEASE_GPG_FINGERPRINT" > .cache/release-output/RELEASE-KEY.asc
+          node scripts/checksums.mjs .cache/release-output
+          printf '%s' "$RELEASE_GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --local-user "$RELEASE_GPG_FINGERPRINT" --armor --detach-sign --output .cache/release-output/SHA256SUMS.txt.asc .cache/release-output/SHA256SUMS.txt
+          gpg --batch --verify .cache/release-output/SHA256SUMS.txt.asc .cache/release-output/SHA256SUMS.txt
+          (cd .cache/release-output && sha256sum -c SHA256SUMS.txt)
+      - name: Create draft prerelease only — never automatically stable/public
+        run: gh release create "$RELEASE_TAG" .cache/release-output/* --target "$RELEASE_COMMIT" --verify-tag --draft --prerelease --title "Focus $RELEASE_TAG — signed release candidate" --notes-file .cache/release-output/RELEASE-NOTES.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+          RELEASE_COMMIT: ${{ needs.preflight.outputs.revision }}

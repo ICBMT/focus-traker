@@ -1,6 +1,6 @@
 # Native validation checklist
 
-**Status, 2026-11-19: all native device rows are unverified.** Rust core tests and production-browser tests are recorded in [IMPLEMENTATION.md](IMPLEMENTATION.md); they do not pass any real-device gate below. The CI matrix is configured, not observed running.
+**Status, 2026-11-19: all native device rows are unverified.** Rust core tests and production-browser tests are recorded in [IMPLEMENTATION.md](IMPLEMENTATION.md); they do not pass any real-device gate below. Initial remote CI at e125546 passed Linux/Windows tests/executable builds; macOS was cancelled. Current package/smoke results must be read from the exact-commit Actions run, not assumed from source.
 
 Linux is the first device-validation priority. Windows and macOS compile/runtime work should happen in the same cycle, not be postponed until every Linux feature is complete. Record failures/degraded features as such; never obtain coverage by elevating input privileges or disabling OS privacy controls.
 
@@ -19,16 +19,16 @@ Rust / Node / packaging format:
 Test / steps / expected / observed / pass-fail-degraded / logs:
 ```
 
-The user’s reference budget is approximately 16 GB RAM without a dedicated GPU. Their specific Linux distribution/desktop/session is still unknown. It is not a benchmark result or a tested minimum specification.
+The user’s reference budget is approximately 16 GB RAM without a dedicated GPU. The owner selected Ubuntu/GNOME; the exact version and Wayland/X11 session are still unknown. It is not a benchmark result or a tested minimum specification.
 
 ## Current platform ledger
 
 | Target | Source/config | CI test/build | Native launch | Permissions/hardware | Packaged/signed release |
 | --- | --- | --- | --- | --- | --- |
-| Linux / GNOME Wayland | Present, no global adapter | Configured, not run | Not tested | Not tested | Not produced |
+| Linux / GNOME Wayland | Present, no global adapter | Initial source build passed; new packages pending | Not tested | Not tested | Not produced |
 | Linux / supporting KDE Wayland | Shared host only | Same Linux job | Not tested | Not tested | Not produced |
 | Linux / genuine X11 | Shared host only | Same Linux job | Not tested | Not tested | Not produced |
-| Windows / WebView2 | Shared host + icon | Configured, not run | Not tested | Not tested | Not produced |
+| Windows / WebView2 | Shared host + icon | Initial source build passed; new packages pending | Not tested | Not tested | Not produced |
 | macOS / WKWebView | Shared host + usage text/entitlement/icon | Configured, not run | Not tested | Not tested | Not produced |
 
 ## 1. Baseline without sensors, AI, or accounts
@@ -54,7 +54,7 @@ The user’s reference budget is approximately 16 GB RAM without a dedicated GPU
 - [ ] Clear history and Delete all stop sessions/tests, invalidate stale writes, and show failures honestly. No stale record returns after restart.
 - [ ] Native JSON deserialization rejects unknown fields and invalid snapshots. Old summaries expire without deleting valid current data.
 - [ ] Rapid exit/force-quit/disk-full/read-only directory cases document actual loss bounds. Do not claim an unimplemented guaranteed flush.
-- [ ] Before release, add/test cross-instance coordination; until then use one editing process/tab and disclose the limitation.
+- [ ] Validate the new OS file lock on each platform, including crash/relaunch and a second launch; validate browser Web Lock ownership/secondary read-only tabs and reload transfer. No competing writer may silently overwrite saved data.
 
 ## 3. Foreground camera lifecycle only
 
@@ -89,6 +89,6 @@ No vision model or fatigue/emotion classification is implemented.
 - [ ] Sandbox examples are visibly synthetic, volatile, explainable, and never mistaken for intercepted OS traffic.
 - [ ] No claim of real suppression, source integration, global glow, idle sensing, or OS-lock control is made in UI/release notes.
 - [ ] A future real source first proves authorization and delivery ownership; uncertain relevance and urgent handling retain conservative fallbacks.
-- [ ] Choose app license, complete transitive license notices and model-license review, then test installer/signing/notarization/updater behavior separately. CI executable compilation is not a signed release.
+- [ ] MIT licensing and signed-public distribution are selected. Complete dependency/system-library/model-license review and test installer/signing/notarization separately. The updater remains disabled. CI executable compilation is not a signed release.
 
 For camera/interaction-style effectiveness and long-session evaluation, continue the full gates in [ROADMAP.md](ROADMAP.md), [INPUT_RHYTHM.md](INPUT_RHYTHM.md), and [PLATFORM_SUPPORT.md](PLATFORM_SUPPORT.md). This checklist cannot be marked passed from synthetic input, browser screenshots, or source inspection alone.

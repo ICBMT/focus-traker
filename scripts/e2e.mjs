@@ -154,6 +154,9 @@ try {
       await page.reload();
       await expect(page.getByRole('dialog', { name: 'Pick up where you left off?' })).toBeVisible();
       await page.keyboard.press('Escape');
+      await expect(page.getByRole('dialog', { name: 'Pick up where you left off?' })).toHaveCount(
+        0,
+      );
       expect((await saved()).checkpoint).not.toBeNull();
       await page.getByRole('button', { name: 'Review checkpoint' }).click();
       await page.getByRole('button', { name: 'Recover paused session' }).click();
@@ -263,7 +266,14 @@ try {
   });
 
   await check('invalid saved data stays read-only until an explicit reset', async () => {
-    await page.evaluate(() => localStorage.setItem('focus.workspace.v1', 'null'));
+    // Seed corruption before the next document initializes, after the outgoing
+    // document's legitimate close-time flush has finished.
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem('focus.test.invalid-seeded')) {
+        localStorage.setItem('focus.workspace.v1', 'null');
+        sessionStorage.setItem('focus.test.invalid-seeded', 'true');
+      }
+    });
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Make space for good work.' })).toBeVisible();
     await expect(page.getByRole('alert')).toContainText('invalid or unsupported format');
@@ -295,6 +305,48 @@ try {
       checkpoint: null,
     });
     await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+
+  await check('a second browser tab cannot overwrite the editing workspace', async () => {
+    const second = await context.newPage();
+    second.on('pageerror', (error) => errors.push(error.message));
+    second.on('request', (request) => {
+      if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== new URL(url).origin)
+        outbound.push(request.url());
+    });
+    try {
+      await second.goto(url);
+      await expect(second.getByRole('alert')).toContainText('Another Focus tab owns');
+      await second
+        .getByRole('navigation', { name: 'Main navigation' })
+        .getByRole('button', { name: 'Preferences', exact: true })
+        .click();
+      await second.getByRole('button', { name: 'Dark', exact: true }).click();
+      await expect(second.locator('html')).toHaveAttribute('data-theme', 'dark');
+      expect((await saved()).settings.theme).toBe('light');
+      await second.getByRole('button', { name: 'Privacy & data', exact: true }).click();
+      await expect(second.getByText('Temporary / read-only', { exact: true })).toBeVisible();
+      await second.getByRole('button', { name: 'Delete all data', exact: true }).click();
+      await second
+        .getByRole('dialog')
+        .getByRole('button', { name: 'Delete all data', exact: true })
+        .click();
+      await expect(second.locator('.error-banner')).toContainText('Could not clear local data');
+      expect((await saved()).settings.theme).toBe('light');
+    } finally {
+      await second.close();
+    }
+  });
+  await check('pagehide flushes immediate edits before the debounce timer runs', async () => {
+    await nav('Overview');
+    await page.getByRole('button', { name: 'Add intention', exact: true }).click();
+    await page.getByLabel('Your intention', { exact: true }).fill('Saved during pagehide');
+    await page.getByRole('button', { name: 'Add intention', exact: true }).last().click();
+    // Functional time is still paused: the 300 ms autosave has not run.
+    await page.reload();
+    await expect(page.locator('.intention-row')).toContainText('Saved during pagehide');
+    await page.getByRole('button', { name: 'Delete Saved during pagehide', exact: true }).click();
+    await advance(500);
   });
 
   const names = [
@@ -356,6 +408,16 @@ try {
             for (const tab of ['AI & companion', 'Privacy & data', 'About Focus']) {
               await page.getByRole('button', { name: tab, exact: true }).click();
               await audit(`Preferences / ${tab}`);
+              if (tab === 'About Focus') {
+                await page
+                  .getByRole('button', { name: 'Open-source licenses', exact: true })
+                  .click();
+                await expect(page.getByRole('dialog').locator('pre')).toContainText(
+                  'FOCUS — DEPENDENCY NOTICES',
+                );
+                await audit('Open-source licenses dialog');
+                await page.keyboard.press('Escape');
+              }
             }
           }
         }

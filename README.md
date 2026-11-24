@@ -6,7 +6,7 @@
 
 ## What works now
 
-This is a working **foundation slice**, not the entire researched product or a validated desktop release.
+This is a working **release candidate for the foundation slice**, not the entire researched product or a validated public production release. The owner selected MIT licensing and signed public distribution; signing/device approval remains gated. See [release preparation](docs/RELEASE.md).
 
 - **Intentions and task sessions** — deep work, reading/learning, and creative work; adjustable durations; pause/resume; early finish; optional breaks.
 - **A calm workspace** — focus room, real-data daily summaries and seven-day chart, searchable intentions, voluntary local check-ins, light/dark/system themes, and reduced motion.
@@ -51,9 +51,9 @@ Build an executable without installer packaging:
 npm run tauri -- build --no-bundle --ci
 ```
 
-The root Cargo workspace produces `target/release/focus-desktop` (`.exe` on Windows). Installer/signing/notarization validation is a separate release gate. Run one desktop instance or editing browser tab at a time; cross-process workspace coordination is not implemented yet.
+The root Cargo workspace produces `target/release/focus-desktop` (`.exe` on Windows). Installer/signing/notarization validation is a separate release gate. An OS-owned file lock prevents two native processes from editing the same workspace. Browser storage uses an exclusive Web Lock; secondary tabs and runtimes without Web Locks are temporary/read-only. Close the owner and reload a secondary tab to take ownership. No unsafe heartbeat fallback is used.
 
-**Native status:** the Rust domain core has been compiled/tested, but this environment has no GTK/WebKit development stack or desktop session. The **Tauri host has not been compiled or launched here**. Linux, Windows, and macOS test/build jobs are configured in CI; they have not run as part of this session. Do not treat browser tests as native WebView or hardware validation. See [the implementation record](docs/IMPLEMENTATION.md) and [native QA checklist](docs/NATIVE_QA.md).
+**Native status:** this sandbox has no GTK/WebKit desktop stack. Remote CI at commit `e125546` passed the web and Linux/Windows native test/executable-build jobs; macOS was cancelled. The expanded current workflow builds installable test packages and runs a real Linux Tauri/WebKit smoke test; check the [branch Actions results](https://github.com/ICBMT/focus-traker/actions?query=branch%3Aarena%2F4326f80b-focus-traker) for its exact-commit outcome. CI launch/compilation is not GNOME/Wayland, permission, hardware, model, or signed-release validation. See [the implementation record](docs/IMPLEMENTATION.md), [native QA checklist](docs/NATIVE_QA.md), and [release guide](docs/RELEASE.md).
 
 ## Local Ollama (optional, native only)
 
@@ -73,7 +73,7 @@ The original `qwen2.5-coder:3b` example has Qwen Research License restrictions; 
 - No analytics, account, advertising SDK, camera recording, or automatic provider calls.
 - Browser: versioned local storage. Desktop: bounded plaintext `workspace-v1.json` in Tauri’s OS app-data directory, with staged replacement and Unix owner-only file/directory permissions in the source implementation. **Not encrypted storage or SQLite yet.**
 - An active task/checkpoint can be saved even when summary history is off. Recovery always requires a deliberate action and stays paused; sensors, chat, and tests never restore automatically.
-- Edits are debounced by about 300 ms; active checkpoints are approximately every 15 seconds and on phase changes. Abrupt termination can lose recent unsaved edits/time. A gap over 15 seconds pauses rather than credits missing time. The browser adapter can pause when its page is heavily throttled; the native host has an independent Rust tick.
+- Edits are debounced by about 300 ms; active checkpoints are approximately every 15 seconds and on phase changes. Native close requests pause/stop optional activity and flush before destroying the window; a failed save keeps it open. Browser pagehide performs a synchronous final save before releasing ownership. Force-quit, OS termination, an in-flight browser command, or storage failure can still lose recent unsaved edits/time. A gap over 15 seconds pauses rather than credits missing time. The browser adapter can pause when its page is heavily throttled; the native host has an independent Rust tick.
 - Sensor summaries/comparison samples, example inboxes, chats, provider choices, and games are volatile. Stopping a test or leaving its page clears the relevant sensor experiment; hiding the page stops capture/testing.
 - Exports contain **task text**, preferences, and session summaries—not sensors, model credentials, chat, or the active checkpoint. Protect exported files yourself.
 - Delete/reset cannot guarantee forensic erasure from storage, swap, backups, or existing exports. OS disk encryption is recommended for sensitive task names.
@@ -85,6 +85,8 @@ The input experiment reports **unknown / similar / changed cadence**, not boredo
 ```sh
 npm run typecheck
 npm test
+npm run test:release
+npm run check:release
 npm run format:check
 npm run test:e2e
 cargo fmt --all -- --check
@@ -95,7 +97,7 @@ cargo test --workspace --locked
 
 Browser E2E builds production assets, starts a temporary preview on port `1421`, and closes it when done. Prefer `npx playwright install chromium`; minimal Linux x64 sandboxes can use the bundled dev-only Chromium fallback. Screenshots/test artifacts go under ignored `.cache/e2e/`, never sensor recordings.
 
-Observed on **2026-11-19**: **103 frontend/domain/component tests**, **19 Rust core tests**, and **14 browser scenarios passed**. The browser suite includes **30 automated accessibility scans** over both themes/screens/dialogs, with no reported violations in the selected WCAG A/AA checks, and no third-party HTTP requests or uncaught errors in those scenarios. This is not a complete accessibility/security audit or evidence of native/sensor accuracy. The Rust tests used a temporary offline source mirror matching locked dependency versions; native host/storage/provider tests await the configured CI/device runs.
+Observed on **2026-11-19**: **112 frontend/domain/component tests**, **3 release-integrity gate tests**, **19 Rust core tests**, and **16 browser scenarios passed**. The browser suite includes **32 automated accessibility scans** over both themes/screens/dialogs, with no reported violations in the selected WCAG A/AA checks, and no third-party HTTP requests or uncaught errors in those scenarios. This is not a complete accessibility/security audit or evidence of native/sensor accuracy. The Rust tests used a temporary offline source mirror matching locked dependency versions; the new native storage/HTTP-mock tests and packaging changes are checked by the current three-OS CI. HTTP mocks are not a live-model benchmark.
 
 ## Repository map
 
@@ -123,4 +125,4 @@ docs/                 approved research, target design, actual status, native QA
 | [Privacy and safety](docs/PRIVACY_AND_SAFETY.md) | Standing product requirements and safe fallbacks |
 | [Roadmap](docs/ROADMAP.md) | Feasibility gates and remaining milestones |
 
-App licensing/distribution terms still need the owner’s decision; no release is published. Bundled font/runtime notices are in [`public/licenses/`](public/licenses/). Full transitive attribution and distribution review remain release prerequisites.
+The app/source is [MIT licensed](LICENSE); dependencies retain their own terms. Build-time npm/Cargo notice inventory and an in-app license viewer are included. Separately bundled system libraries, installer resources, trademark obligations, and model licenses still require distribution review. No signed public release has been published. Signing keys belong in the protected CI environment, never in chat; follow [RELEASE.md](docs/RELEASE.md).

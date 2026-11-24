@@ -40,7 +40,19 @@
     ],
     "macOS": {
       "infoPlist": "Info.plist",
-      "entitlements": "Entitlements.plist"
+      "entitlements": "Entitlements.plist",
+      "minimumSystemVersion": "12.0",
+      "hardenedRuntime": true
+    },
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "copyright": "Copyright (c) 2026 ICBMT",
+    "homepage": "https://github.com/ICBMT/focus-traker",
+    "windows": {
+      "allowDowngrades": false,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
     }
   }
 }

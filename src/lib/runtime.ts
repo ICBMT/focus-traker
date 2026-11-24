@@ -1,6 +1,7 @@
 import { isTauri, invoke } from '@tauri-apps/api/core';
 import { BrowserSession } from '../core/session';
 import { loadBrowserWorkspace, parseWorkspace, saveBrowserWorkspace } from '../core/storage';
+import { BrowserWorkspaceLease } from '../core/lease';
 import type {
   ChatMessage,
   OllamaModel,
@@ -14,6 +15,29 @@ import { compareRhythm } from '../core/rhythm';
 
 export const desktop = isTauri();
 const browserSession = new BrowserSession();
+const browserLease = new BrowserWorkspaceLease();
+let browserPageHide: (() => void) | null = null;
+if (!desktop) {
+  window.addEventListener('pagehide', () => {
+    try {
+      browserPageHide?.();
+    } finally {
+      // Flush and release in the SAME listener. Browsers can run a microtask
+      // checkpoint between separate event listeners and release too early.
+      browserLease.release();
+    }
+  });
+  window.addEventListener('pageshow', (event) => {
+    // A BFCache document no longer owns its old writer lock. Re-read data and
+    // reacquire before allowing edits rather than reviving stale state.
+    if (event.persisted) window.location.reload();
+  });
+}
+function saveBrowser(data: Workspace): void {
+  if (!browserLease.writable)
+    throw new Error('This tab does not own the workspace. Close the editing tab and reload.');
+  saveBrowserWorkspace(data);
+}
 
 export const runtime = {
   async info(): Promise<RuntimeInfo> {
@@ -26,13 +50,57 @@ export const runtime = {
     };
   },
   async load(): Promise<{ data: Workspace; warning?: string; readOnly?: boolean }> {
-    if (!desktop) return loadBrowserWorkspace();
+    if (!desktop) {
+      const lease = await browserLease.acquire(navigator.locks);
+      const stored = loadBrowserWorkspace();
+      return lease.writable ? stored : { ...stored, readOnly: true, warning: lease.warning };
+    }
     const data = await invoke<unknown>('load_workspace');
     return { data: parseWorkspace(data) };
   },
   async save(data: Workspace): Promise<void> {
     if (desktop) await invoke('save_workspace', { data });
-    else saveBrowserWorkspace(data);
+    else saveBrowser(data);
+  },
+  async onCloseRequested(
+    prepare: () => Promise<boolean>,
+    failed: (message: string) => void,
+  ): Promise<() => void> {
+    if (!desktop) return () => {};
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    const window = getCurrentWindow();
+    let closing = false;
+    return window.onCloseRequested(async (event) => {
+      event.preventDefault();
+      if (closing) return;
+      closing = true;
+      try {
+        if (await prepare()) await window.destroy();
+      } catch {
+        failed('The window could not close cleanly. Your workspace remains open; please retry.');
+      } finally {
+        closing = false;
+      }
+    });
+  },
+  onPageHide(
+    prepare: (snapshot: SessionSnapshot) => Workspace | null,
+    failed: (message: string) => void,
+  ): () => void {
+    if (desktop) return () => {};
+    const handler = () => {
+      if (!browserLease.writable) return;
+      try {
+        const data = prepare(browserSession.pause());
+        if (data) saveBrowser(data);
+      } catch {
+        failed('The final browser save failed. Recent changes may not survive closing this tab.');
+      }
+    };
+    browserPageHide = handler;
+    return () => {
+      if (browserPageHide === handler) browserPageHide = null;
+    };
   },
   async snapshot(): Promise<SessionSnapshot> {
     return desktop ? invoke('session_snapshot') : browserSession.snapshot();

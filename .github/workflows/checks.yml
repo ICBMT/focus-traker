@@ -16,65 +16,114 @@ jobs:
   web:
     name: Web, privacy regressions, and accessibility
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
       - run: npm run format:check
+      - run: npm run check:release
+      - run: npm run test:release
       - run: npm run typecheck
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: browser-checks
           path: .cache/e2e/
           if-no-files-found: ignore
-          retention-days: 5
+          retention-days: 7
 
   native:
-    name: ${{ matrix.label }} native source checks
+    name: ${{ matrix.label }} native checks and unsigned packages
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-24.04
-            label: Linux (first QA priority)
+            label: Ubuntu (first QA priority)
+            target: linux-x86_64
+            bundles: deb,appimage
+            bundle-root: target/release/bundle
+            extra-args: ''
           - os: windows-latest
             label: Windows
-          - os: macos-14
-            label: macOS
+            target: windows-x86_64
+            bundles: nsis
+            bundle-root: target/release/bundle
+            extra-args: ''
+          - os: macos-latest
+            label: macOS universal
+            target: macos-universal
+            bundles: dmg
+            bundle-root: target/universal-apple-darwin/release/bundle
+            extra-args: --target universal-apple-darwin
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       CARGO_TERM_COLOR: always
       CARGO_INCREMENTAL: '0'
+      APPIMAGE_EXTRACT_AND_RUN: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           toolchain: '1.99.0'
-          components: rustfmt
-      - uses: Swatinem/rust-cache@v2
+          components: rustfmt,clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           prefix-key: native-${{ matrix.os }}
-      - name: Linux native prerequisites
+      - name: Linux native and headless WebKit prerequisites
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential curl wget file libwebkit2gtk-4.1-dev libgtk-3-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y build-essential file libwebkit2gtk-4.1-dev libgtk-3-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xauth webkit2gtk-driver
+      - name: Both macOS architectures
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
       - run: npm ci
       - run: npm run build
       - run: cargo fmt --all -- --check
-      - run: cargo test --workspace --locked
-      - name: Compile release executable (not a signed installer)
-        run: npm run tauri -- build --no-bundle --ci
+      - run: node scripts/run-check.mjs -- cargo test --workspace --locked
+      - run: node scripts/run-check.mjs -- cargo clippy --workspace --all-targets --locked -- -D clippy::correctness -D clippy::suspicious
+      - name: Collect runtime dependency notices
+        run: node scripts/run-check.mjs -- node scripts/licenses.mjs --rust
+      - name: Build unsigned installable test packages
+        run: node scripts/run-check.mjs -- npm run tauri -- build --ci --bundles ${{ matrix.bundles }} ${{ matrix.extra-args }}
+      - name: Install development-only native WebDriver
+        if: runner.os == 'Linux'
+        run: cargo install tauri-driver --version 2.1.0 --locked
+      - name: Real Tauri/Rust/WebKit smoke (not a hardware test)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a node scripts/native-smoke.mjs target/release/focus-desktop
+      - name: Catalog packages and SHA-256 hashes
+        run: node scripts/package-artifacts.mjs ${{ matrix.bundle-root }} .cache/packages/${{ matrix.target }} ${{ matrix.target }} unsigned-test
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: focus-unsigned-test-${{ matrix.target }}
+          path: .cache/packages/${{ matrix.target }}/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && runner.os == 'Linux'
+        with:
+          name: native-webkit-checks
+          path: |
+            .cache/native-smoke/result.json
+            .cache/native-smoke/*.png
+            .cache/native-smoke/driver.log
+          if-no-files-found: ignore
+          retention-days: 7

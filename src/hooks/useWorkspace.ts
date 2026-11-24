@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { runtime } from '../lib/runtime';
-import { recordsFromSnapshot } from '../core/storage';
+import { recordsFromSnapshot, workspaceAfterSnapshot } from '../core/storage';
 import { emptySession, emptyWorkspace, isActive } from '../core/types';
 import type {
   RuntimeInfo,
@@ -31,6 +31,7 @@ export function useWorkspace() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveRevision = useRef(0);
   const savingPaused = useRef(false);
+  const closeNeedsSave = useRef(false);
   const commandBusy = useRef(false);
   const timerRevision = useRef(0);
   const checkpointAt = useRef(0);
@@ -53,18 +54,7 @@ export function useWorkspace() {
     if (!due && phase === checkpointPhase.current && records.length === 0) return;
     checkpointPhase.current = phase;
     checkpointAt.current = Date.now();
-    setData((old) => ({
-      ...old,
-      checkpoint: active ? { ...current } : null,
-      sessions: old.settings.keepHistory
-        ? [
-            ...old.sessions,
-            ...records.filter((record) => !old.sessions.some((saved) => saved.id === record.id)),
-          ]
-            .filter((record) => record.startedAt >= Date.now() - 30 * 86_400_000)
-            .slice(-500)
-        : [],
-    }));
+    setData((old) => workspaceAfterSnapshot(old, current, records));
   }, []);
 
   useEffect(() => {
@@ -253,6 +243,8 @@ export function useWorkspace() {
       checkpointPhase.current = null;
       checkpointAt.current = 0;
       setData(next);
+      dataRef.current = next;
+      closeNeedsSave.current = false;
       setRecovery(null);
       setCanSave(true);
       setError('');
@@ -270,6 +262,94 @@ export function useWorkspace() {
       setBusy(false);
     }
   };
+
+  const finalWorkspace = (snapshot: SessionSnapshot): Workspace => {
+    if (recoveryRef.current) return dataRef.current;
+    if (seen.current.id !== snapshot.id) seen.current = { id: snapshot.id, records: new Set() };
+    const records = recordsFromSnapshot(snapshot).filter(
+      (record) => !seen.current.records.has(record.id),
+    );
+    records.forEach((record) => seen.current.records.add(record.id));
+    return workspaceAfterSnapshot(dataRef.current, snapshot, records);
+  };
+  const closeRef = useRef<() => Promise<boolean>>(async () => false);
+  closeRef.current = async () => {
+    if (!ready || commandBusy.current) {
+      setError('Please wait for the current action to finish, then close Focus again.');
+      return false;
+    }
+    commandBusy.current = true;
+    savingPaused.current = true;
+    saveRevision.current += 1;
+    timerRevision.current += 1;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    setBusy(true);
+    window.dispatchEvent(new Event('focus:pause-sensors'));
+    try {
+      await runtime.stopChat().catch(() => {});
+      const snapshot = await runtime.pause();
+      await saveQueue.current.catch(() => {});
+      const next = finalWorkspace(snapshot);
+      dataRef.current = next;
+      setData(next);
+      setSession(snapshot);
+      if (canSave || closeNeedsSave.current) {
+        closeNeedsSave.current = true;
+        await runtime.save(next);
+        closeNeedsSave.current = false;
+      }
+      return true;
+    } catch {
+      setCanSave(false);
+      setError(
+        'Focus could not finish saving. The window was kept open and automatic writes are paused. Check storage, export your workspace, or retry closing.',
+      );
+      return false;
+    } finally {
+      savingPaused.current = false;
+      commandBusy.current = false;
+      timerRevision.current += 1;
+      setBusy(false);
+    }
+  };
+  const pageHideRef = useRef<(snapshot: SessionSnapshot) => Workspace | null>(() => null);
+  pageHideRef.current = (snapshot) => {
+    window.dispatchEvent(new Event('focus:pause-sensors'));
+    if (!ready || !canSave || commandBusy.current || savingPaused.current) return null;
+    saveRevision.current += 1;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    const next = finalWorkspace(snapshot);
+    dataRef.current = next;
+    return next;
+  };
+  useEffect(() => {
+    let alive = true;
+    let unlisten = () => {};
+    void runtime
+      .onCloseRequested(
+        () => closeRef.current(),
+        (message) => setError(message),
+      )
+      .then((stop) => {
+        if (alive) unlisten = stop;
+        else stop();
+      })
+      .catch(() => {
+        if (alive)
+          setError(
+            'Close-time saving could not be initialized. Keep backups of important task text.',
+          );
+      });
+    const stopPageHide = runtime.onPageHide(
+      (snapshot) => pageHideRef.current(snapshot),
+      (message) => setError(message),
+    );
+    return () => {
+      alive = false;
+      unlisten();
+      stopPageHide();
+    };
+  }, []);
 
   return {
     data,

@@ -53,6 +53,19 @@ export default function Settings({
   const [connecting, setConnecting] = useState(false);
   const [port, setPort] = useState(String(ai.port));
   const [connectionError, setConnectionError] = useState('');
+  const [licenses, setLicenses] = useState<string | null>(null);
+  const openLicenses = async () => {
+    setLicenses('Loading bundled license notices…');
+    try {
+      const response = await fetch('/licenses/ALL-THIRD-PARTY-NOTICES.txt');
+      if (!response.ok) throw new Error('Not available');
+      setLicenses(await response.text());
+    } catch {
+      setLicenses(
+        'Bundled notices could not be loaded. The installation archive and source repository include license information. No external request was made.',
+      );
+    }
+  };
   const connect = async () => {
     const number = Number(port);
     if (!Number.isInteger(number) || number < 1 || number > 65535) {
@@ -534,7 +547,8 @@ export default function Settings({
                 without grading your attention or turning rest into something you have to earn.
               </p>
               <div className="about-version">
-                <Pill>Foundation · v0.1.0</Pill>
+                <Pill>Candidate · v0.1.0</Pill>
+                <Pill tone="neutral">MIT licensed</Pill>
                 <Pill tone="neutral">Rust + Tauri + React</Pill>
               </div>
               <div className="about-status">
@@ -546,6 +560,9 @@ export default function Settings({
                   integration are not implemented.
                 </p>
               </div>
+              <Button variant="secondary" onClick={() => void openLicenses()}>
+                Open-source licenses
+              </Button>
               <span className="about-signoff">
                 Built for your pace, not someone else’s expectations.
               </span>
@@ -553,6 +570,27 @@ export default function Settings({
           )}
         </div>
       </div>
+      {licenses !== null && (
+        <Modal
+          title="Open-source licenses"
+          eyebrow="BUNDLED NOTICES"
+          onClose={() => setLicenses(null)}
+        >
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              overflowWrap: 'anywhere',
+              maxHeight: '55vh',
+              overflowY: 'auto',
+              fontSize: 12,
+              lineHeight: 1.6,
+            }}
+            tabIndex={0}
+          >
+            {licenses}
+          </pre>
+        </Modal>
+      )}
       {confirm && (
         <Modal
           title={

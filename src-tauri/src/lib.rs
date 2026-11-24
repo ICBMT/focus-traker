@@ -197,8 +197,7 @@ async fn export_workspace(
     tauri::async_runtime::spawn_blocking(move || {
         let Some(destination) = app.dialog().file().set_title("Export Focus workspace").set_file_name("focus-workspace.json").add_filter("JSON workspace", &["json"]).blocking_save_file() else { return Ok(None); };
         let path = destination.into_path().map_err(|_| "Choose a local export file.")?;
-        let bytes = serde_json::to_vec_pretty(&data).map_err(|_| "The export could not be prepared.")?;
-        std::fs::write(&path, bytes).map_err(|_| "The export could not be written.")?;
+        storage::export(&path, data)?;
         Ok(Some("Workspace exported. Exports contain task text and session summaries; keep this file private.".into()))
     }).await.map_err(|_| "The export dialog could not be opened.")?
 }
@@ -235,8 +234,17 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(SessionState::default())
         .manage(storage::StoreGate::default())
-        .manage(ai::AiService::new().expect("could not initialize the local model client"))
+        .manage(ai::AiService::new())
         .setup(|app| {
+            let directory = app.path().app_data_dir()?;
+            let ownership = storage::InstanceGuard::acquire(&directory).map_err(|message| {
+                app.dialog()
+                    .message(&message)
+                    .title("Focus could not open this workspace")
+                    .blocking_show();
+                std::io::Error::other(message)
+            })?;
+            app.manage(ownership);
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 loop {

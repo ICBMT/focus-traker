@@ -16,6 +16,8 @@ const adapter = vi.hoisted(() => ({
   reset: vi.fn(),
   restore: vi.fn(),
   stopChat: vi.fn(),
+  onCloseRequested: vi.fn(),
+  onPageHide: vi.fn(),
 }));
 vi.mock('../src/lib/runtime', () => ({ runtime: adapter }));
 const NOW = Date.UTC(2026, 10, 19, 9);
@@ -54,6 +56,9 @@ beforeEach(() => {
   adapter.snapshot.mockResolvedValue(emptySession());
   adapter.save.mockResolvedValue(undefined);
   adapter.stopChat.mockResolvedValue(undefined);
+  adapter.onCloseRequested.mockResolvedValue(() => {});
+  adapter.onPageHide.mockReturnValue(() => {});
+  adapter.pause.mockResolvedValue(emptySession());
   adapter.reset.mockResolvedValue(emptySession());
   adapter.start.mockResolvedValue(active());
   adapter.finish.mockResolvedValue(complete());
@@ -212,5 +217,82 @@ describe('workspace persistence and command ordering', () => {
     expect(adapter.stopChat).toHaveBeenCalledOnce();
     expect(result.current.session.phase).toBe('paused');
     window.removeEventListener('focus:pause-sensors', pause);
+  });
+});
+
+describe('close-time data safety', () => {
+  const requestClose = () => adapter.onCloseRequested.mock.calls.at(-1)![0]() as Promise<boolean>;
+  it('flushes the newest edits and a paused checkpoint before permitting native close', async () => {
+    adapter.pause.mockResolvedValue({ ...active(), phase: 'paused' });
+    const { result } = renderHook(() => useWorkspace());
+    await flush();
+    act(() =>
+      result.current.setData((old) => ({
+        ...old,
+        intentions: [
+          { id: 'last', title: 'Last edit', mode: 'deep', completed: false, createdAt: NOW },
+        ],
+      })),
+    );
+    await act(async () => expect(await requestClose()).toBe(true));
+    expect(adapter.save.mock.calls.at(-1)?.[0]).toMatchObject({
+      intentions: [{ title: 'Last edit' }],
+      checkpoint: { phase: 'paused', task: 'My task' },
+    });
+    expect(adapter.stopChat).toHaveBeenCalled();
+  });
+  it('keeps failed saves open and retries without losing a terminal record', async () => {
+    adapter.pause.mockResolvedValue(complete());
+    const { result } = renderHook(() => useWorkspace());
+    await flush();
+    adapter.save.mockRejectedValueOnce(new Error('Disk full'));
+    await act(async () => expect(await requestClose()).toBe(false));
+    expect(result.current.error).toContain('kept open');
+    expect(result.current.data.sessions).toHaveLength(1);
+    expect(result.current.canSave).toBe(false);
+    await act(async () => expect(await requestClose()).toBe(true));
+    expect(adapter.save.mock.calls.at(-1)?.[0].sessions).toMatchObject([
+      { id: 'a:focus', durationMs: 5000 },
+    ]);
+  });
+  it('never overwrites an unreadable workspace just because the app is closing', async () => {
+    adapter.load.mockResolvedValue({ data: emptyWorkspace(), readOnly: true });
+    renderHook(() => useWorkspace());
+    await flush();
+    await act(async () => expect(await requestClose()).toBe(true));
+    expect(adapter.save).not.toHaveBeenCalled();
+  });
+  it('preserves a deferred recovery checkpoint during close and browser pagehide', async () => {
+    adapter.load.mockResolvedValue({ data: { ...emptyWorkspace(), checkpoint: active() } });
+    renderHook(() => useWorkspace());
+    await flush();
+    const browserFinal = adapter.onPageHide.mock.calls.at(-1)![0](emptySession());
+    expect(browserFinal.checkpoint?.id).toBe('a');
+    await act(async () => expect(await requestClose()).toBe(true));
+    expect(adapter.save.mock.calls.at(-1)?.[0].checkpoint?.id).toBe('a');
+  });
+  it('does not race a pending user command when close is requested', async () => {
+    const { result } = renderHook(() => useWorkspace());
+    await flush();
+    let release!: (snapshot: SessionSnapshot) => void;
+    adapter.start.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    await act(async () => {
+      const start = result.current.start({
+        id: 'a',
+        task: 'My task',
+        mode: 'deep',
+        durationMs: 60_000,
+      });
+      expect(await requestClose()).toBe(false);
+      release(active());
+      await start;
+    });
+    expect(adapter.pause).not.toHaveBeenCalled();
+    expect(result.current.error).toContain('current action');
   });
 });

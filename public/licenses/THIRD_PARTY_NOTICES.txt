@@ -25,3 +25,5 @@ license report. No native release has been produced. Full transitive attribution
 platform redistribution terms, app licensing/distribution, and any selected model
 license must be reviewed before publishing a distributable. Model weights are
 not included, downloaded automatically, or licensed by this repository.
+
+Release-candidate update: Focus itself is MIT licensed. The build generates ALL-THIRD-PARTY-NOTICES.txt and DEPENDENCIES.json for the npm production closure and, in native CI, the resolved Cargo graph. These inventories do not certify separately bundled operating-system libraries or installer/model resources; review those before public distribution.

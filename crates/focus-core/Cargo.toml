@@ -2,6 +2,8 @@
 name = "focus-core"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
 description = "Deterministic, permission-free session and rhythm logic for Focus Tracker"
 
 [dependencies]

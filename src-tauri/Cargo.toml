@@ -2,6 +2,8 @@
 name = "focus-desktop"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+repository.workspace = true
 description = "Local-first Focus Tracker desktop host"
 build = "build.rs"
 
@@ -21,3 +23,6 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useId, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUpRight, Leaf, X } from 'lucide-react';
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
@@ -87,7 +87,7 @@ export function Modal({
   const container = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const root = document.getElementById('root');
     const wasInert = root?.inert ?? false;

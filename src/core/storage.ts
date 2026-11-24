@@ -1,6 +1,6 @@
 import { boundedInteger, boundedText, isObject, parseCheckpoint } from './checkpoint';
-import { DEFAULT_SETTINGS, emptyWorkspace } from './types';
-import type { SessionRecord, Workspace } from './types';
+import { DEFAULT_SETTINGS, emptyWorkspace, isActive } from './types';
+import type { SessionRecord, SessionSnapshot, Workspace } from './types';
 
 export const STORAGE_KEY = 'focus.workspace.v1';
 const styles = ['deep', 'reading', 'creative'];
@@ -162,4 +162,26 @@ export function recordsFromSnapshot(snapshot: Workspace['checkpoint']): SessionR
       completed: snapshot.breakElapsedMs >= snapshot.breakDurationMs,
     });
   return records;
+}
+
+// records is explicit so a history-off -> on toggle cannot reinsert a terminal
+// snapshot already consumed while retention was disabled.
+export function workspaceAfterSnapshot(
+  data: Workspace,
+  snapshot: SessionSnapshot,
+  records: SessionRecord[],
+  now = Date.now(),
+): Workspace {
+  return {
+    ...data,
+    checkpoint: isActive(snapshot.phase) ? { ...snapshot } : null,
+    sessions: data.settings.keepHistory
+      ? [
+          ...data.sessions,
+          ...records.filter((record) => !data.sessions.some((saved) => saved.id === record.id)),
+        ]
+          .filter((record) => record.startedAt >= now - 30 * 86_400_000)
+          .slice(-500)
+      : [],
+  };
 }
