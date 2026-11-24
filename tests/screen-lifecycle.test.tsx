@@ -68,10 +68,12 @@ beforeEach(() => {
   bridge.startScreen.mockResolvedValue(undefined);
   bridge.analyzeScreen.mockResolvedValue(suggestion);
 });
-it('does not open the OS chooser or contact a model just because preferences load', async () => {
+it('does not inherit a prior renderer grant or contact a model just because preferences load', async () => {
+  bridge.screenStatus.mockResolvedValue({ supported: true, active: true, starting: false });
   const { result } = renderHook(() => useCompanion(props()));
   await flush(180_000);
   expect(result.current.sharing).toBe(false);
+  expect(bridge.stopScreen).toHaveBeenCalled();
   expect(bridge.startScreen).not.toHaveBeenCalled();
   expect(bridge.analyzeScreen).not.toHaveBeenCalled();
 });

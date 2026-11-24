@@ -109,12 +109,17 @@ pub fn status(app: &tauri::AppHandle) -> Result<Status, String> {
 }
 pub fn configure(app: &tauri::AppHandle, config: Config) -> Result<Status, String> {
     let stop_sharing = !config.enabled || config.presentation;
-    app.state::<Companion>()
-        .inner
-        .lock()
-        .map_err(|_| "The companion is unavailable.")?
-        .policy
-        .configure(config)?;
+    {
+        let state = app.state::<Companion>();
+        let mut inner = state
+            .inner
+            .lock()
+            .map_err(|_| "The companion is unavailable.")?;
+        if stop_sharing {
+            inner.expanded = false;
+        }
+        inner.policy.configure(config)?;
+    }
     if stop_sharing {
         app.state::<crate::screen::ScreenService>().stop();
         app.state::<crate::ai::AiService>().cancel();

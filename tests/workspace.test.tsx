@@ -357,6 +357,11 @@ describe('failed-close user controls', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Privacy & data' }));
       fireEvent.click(screen.getByRole('button', { name: 'Delete all data' }));
       expect(screen.getByRole('dialog', { name: 'A completely fresh start?' })).toBeVisible();
+      await act(async () => {
+        window.dispatchEvent(new CustomEvent('focus:companion-action', { detail: 'rest' }));
+      });
+      await flush();
+      expect(screen.getAllByRole('dialog')).toHaveLength(1); // A desktop action cannot stack over a nested confirmation.
       await failClose();
       expect(screen.queryByRole('dialog', { name: 'A completely fresh start?' })).toBeNull();
       if (action === 'Escape') fireEvent.keyDown(document, { key: 'Escape' });

@@ -67,8 +67,10 @@ export default class FocusCompanion extends Extension {
         });
         Main.layoutManager.addChrome(this._wrapper, {trackFullscreen: true});
         Main.layoutManager.addChrome(this._tab, {trackFullscreen: true});
-        Main.ctrlAltTabManager.addGroup(this._tab, 'Focus companion', 'alarm-symbolic');
-        this._tab.connect('key-focus-in', () => this._open());
+        Main.ctrlAltTabManager.addGroup(this._panel, 'Focus companion', 'alarm-symbolic', {proxy: this._tab, focusCallback: () => this._open(true)});
+        this._tab.connect('key-focus-in', () => this._open(true));
+        // Keep the proxy mapped for Ctrl+Alt+Tab, underneath the opaque panel.
+        this._wrapper.get_parent().set_child_above_sibling(this._wrapper, this._tab);
         const connect = (object, signal, fn) => this._signals.push([object, object.connect(signal, fn)]);
         connect(Main.layoutManager, 'monitors-changed', () => this._position());
         connect(Main.sessionMode, 'updated', () => this._shellState());
@@ -156,7 +158,8 @@ export default class FocusCompanion extends Extension {
 
     _visibility() {
         const show = Boolean(this._status?.config.enabled && !this._status.config.presentation && !this._suppressed());
-        this._tab.visible = show && !this._expanded;
+        if (!show) this._expanded = false;
+        this._tab.visible = show;
         this._wrapper.visible = show && this._expanded;
     }
 
@@ -169,13 +172,15 @@ export default class FocusCompanion extends Extension {
         this._wrapper.set_position(monitor.x + monitor.width - WIDTH, y);
     }
 
-    _open() {
+    _open(focus = false) {
         if (this._leave) { GLib.source_remove(this._leave); this._leave = 0; }
-        if (!this._alive || this._expanded) return;
+        if (!this._alive) return;
+        if (this._expanded) { if (focus) this._panel.navigate_focus(null, St.DirectionType.TAB_FORWARD, false); return; }
         this._expanded = true;
         this._visibility();
         this._panel.translation_x = WIDTH - 48;
         this._panel.ease({translation_x: 0, duration: this._status?.config.reduceMotion ? 0 : 180, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+        if (focus) this._panel.navigate_focus(null, St.DirectionType.TAB_FORWARD, false);
     }
 
     _close() { this._expanded = false; this._visibility(); }
@@ -186,7 +191,6 @@ export default class FocusCompanion extends Extension {
         if (this._timer) GLib.source_remove(this._timer);
         if (this._leave) GLib.source_remove(this._leave);
         for (const [object, id] of this._signals) object.disconnect(id);
-        Main.ctrlAltTabManager.removeGroup(this._tab);
         this._cancel.cancel();
         this._http.abort();
         Main.layoutManager.removeChrome(this._wrapper);

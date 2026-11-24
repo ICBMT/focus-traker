@@ -48,7 +48,7 @@
 
 See [DESKTOP_COMPANION.md](DESKTOP_COMPANION.md) for the new corner timer, native least-privilege webview, GNOME Shell integration, deterministic voluntary reminders, rest space, gentler AI prompt, and separately authorized Linux portal/vision path. This supersedes earlier foundation-only statements that no overlay/screen path exists; it does not imply physical validation. The main workspace still owns persistence and close-save behavior. v1 preferences migrate additively; no screen grant/image/description is persisted.
 
-Local new-work evidence: **151 frontend tests (10 files), 18 browser scenarios, 38 axe states/0 reported violations**, typecheck/build, and six release/harness regressions passed. Full-host compilation and the new native multi-window smoke require the upcoming exact-commit matrix. No real GNOME, portal stream, camera or model call occurred locally.
+Local new-work evidence: **151 frontend tests (10 files), 18 browser scenarios, 38 axe states/0 reported violations**, typecheck/build, and six release/harness regressions passed. The first full native matrix is now green at **abda5ec / [45393415934](https://github.com/ICBMT/focus-traker/actions/runs/45393415934)**: three-OS tests/clippy/packages plus six real Linux native checks, including separate-window routing, main-only IPC rejection, and voluntary rest exit. Later changes require their own matrix. No real GNOME, portal stream, camera or model call occurred locally.
 
 ## Foundation evidence observed in this workspace
 

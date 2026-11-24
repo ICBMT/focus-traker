@@ -103,6 +103,7 @@ export default function App() {
       setRecoveryVisible(true);
       return;
     }
+    if (document.querySelector('[role="dialog"]')) return;
     if (dialog || coach || garden || restSpace || app.closeBlocked || app.busy || !app.ready)
       return;
     await companion.stop();
@@ -128,7 +129,14 @@ export default function App() {
       if (action === 'resume' && !app.recovery && !dialog && !app.closeBlocked)
         void app.run(() => runtime.resume());
       if (action === 'rest') void openRestSpace(message);
-      if (action === 'talk' && !dialog && !app.closeBlocked && !app.recovery && !restSpace) {
+      if (
+        action === 'talk' &&
+        !dialog &&
+        !app.closeBlocked &&
+        !app.recovery &&
+        !restSpace &&
+        !document.querySelector('[role="dialog"]')
+      ) {
         void (async () => {
           if (app.session.phase === 'focus' && !(await app.run(() => runtime.pause()))) return;
           setCoach(true);

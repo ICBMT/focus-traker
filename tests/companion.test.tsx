@@ -160,6 +160,14 @@ it('reveals the timer on keyboard focus and never grabs focus for an invitation'
   expect(action).toHaveBeenCalledWith('stopSharing');
   fireEvent.keyDown(screen.getByRole('complementary'), { key: 'Escape' });
   expect(action).toHaveBeenCalledWith('dismiss');
+  view.rerender(
+    <CompanionPanel
+      status={{ ...status, config: { ...config, presentation: true } }}
+      onAction={action}
+    />,
+  );
+  view.rerender(<CompanionPanel status={status} onAction={action} />);
+  expect(screen.getByRole('button', { name: 'Show timer, 00:30' })).toBeVisible();
   opener.remove();
 });
 

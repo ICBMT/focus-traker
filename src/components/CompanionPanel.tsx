@@ -15,6 +15,9 @@ export function CompanionPanel({
   onAction: (action: CompanionAction) => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  useEffect(() => {
+    if (!status.config.enabled || status.config.presentation) setHovered(false);
+  }, [status.config.enabled, status.config.presentation]);
   const expanded = hovered || !!status.reason || status.placement === 'compositor';
   useEffect(() => {
     if (nativeWindow) void companionRuntime.expand(expanded).catch(() => {});

@@ -127,6 +127,8 @@ export function useCompanion({
   ]);
 
   useEffect(() => {
+    // A fresh renderer never inherits a native grant from a crashed/reloaded UI.
+    void stop();
     let alive = true;
     let unlisten = () => {};
     void companionRuntime

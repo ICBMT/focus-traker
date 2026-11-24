@@ -202,8 +202,7 @@ fn declared_remote(value: &serde_json::Value) -> bool {
     ["remote_host", "remote_model"].iter().any(|key| {
         value
             .get(key)
-            .and_then(|v| v.as_str())
-            .is_some_and(|v| !v.is_empty())
+            .is_some_and(|v| !v.is_null() && v.as_str() != Some(""))
     })
 }
 #[derive(Debug, Serialize)]

@@ -1,6 +1,6 @@
 # Desktop companion and opt-in screen context
 
-**Implementation status (2026-11-19):** source and browser/lifecycle regressions implemented on the feature branch. Physical GNOME/Wayland, real portal capture, live vision-model quality, CPU/RAM/latency, mixed-DPI placement, and signed installers remain separate validation gates. A passing Xvfb test is not a Wayland/capture test. The earlier foundation installer report does **not** include this work until a new exact-commit CI run is linked.
+**Implementation status (2026-11-19):** implemented on the feature branch. **First full matrix passed at `abda5ec`**, [run 45393415934](https://github.com/ICBMT/focus-traker/actions/runs/45393415934): all four jobs, three-OS Rust/clippy/package checks, and six actual Linux Tauri/Rust/WebKit checks, including the separate companion window, denied main-only IPC, and voluntary rest exit. Physical GNOME/Wayland, real portal capture, live vision-model quality, CPU/RAM/latency, mixed-DPI placement, and signed installers remain separate validation gates. A passing Xvfb test is not a Wayland/capture test. The earlier foundation installer report does **not** include this feature. Every later source revision still needs its own exact-commit matrix; see the run’s SHA before installing.
 
 ## Try it
 
@@ -14,6 +14,10 @@
 The extension's declared target is **GNOME Shell 45–50** (ESM/Soup 3). This declaration is not evidence of physical testing on every version. Older Shell releases and other Wayland compositors use the compact-window fallback. On Wayland, an ordinary Tauri window cannot guarantee a screen coordinate or always-on-top behavior. The fallback keeps a title bar so the compositor/user can move it. Windows/macOS/X11 request native corner placement and always-on-top; full-screen windows, OS policies, and monitor/DPI behavior still require testing. No macOS private-API transparency entitlement was added.
 
 The browser preview demonstrates the timer **inside that page only**. It does not overlay other applications, contact the viewer's localhost, or request screen sharing.
+
+### Disable or remove it
+
+Turn off **Desktop corner timer** to hide both integrations and end screen sharing; disable the extension separately in GNOME Extensions if you no longer want it loaded. Remove the user-installed `gnome-shell/extensions/focus-companion@icbmt` folder through GNOME Extensions or your file manager to uninstall that integration. Uninstalling the Focus package does not silently delete a separately enabled user extension or your saved workspace. The extension has no useful state without the running app and hides itself if the authenticated bridge is unavailable.
 
 ## Screen context: separate consent, not a detector
 
@@ -69,3 +73,13 @@ Record Ubuntu, GNOME, portal, PipeWire, Python/GStreamer, Ollama/model, GPU/driv
 - Saved JSON, exports, logs and installed artifact resources; native permission denials from the companion; real close failure and unsaved-exit cleanup while sharing. Timer/chat/rest must still work when every optional integration is unavailable.
 
 Reference implementations/contracts consulted: [ScreenCast portal XML, 1.18.4](https://github.com/flatpak/xdg-desktop-portal/blob/1.18.4/data/org.freedesktop.portal.ScreenCast.xml), [GNOME 46 layout/chrome](https://github.com/GNOME/gnome-shell/blob/gnome-46/js/ui/layout.js), [Ollama API](https://github.com/ollama/ollama/blob/main/docs/api.md), and Tauri 2.12.7's window/webview source. These establish API intent, not successful physical behavior.
+
+## First green feature build (unsigned test artifacts)
+
+The archive links below are for **`abda5ecf8184ceda9f15249dde3040289a378b2f`**, not later revisions. These CI artifacts expire after 14 days and may require GitHub sign-in. Artifact metadata and job results were inspected; archive contents/system-library legal review and physical installation were not independently inspected here. Signing/publication remains gated.
+
+- [Ubuntu x86_64 deb + AppImage](https://github.com/ICBMT/focus-traker/actions/runs/45393415934/artifacts/14919783252)
+- [Windows x86_64 NSIS](https://github.com/ICBMT/focus-traker/actions/runs/45393415934/artifacts/14920740679)
+- [macOS universal DMG](https://github.com/ICBMT/focus-traker/actions/runs/45393415934/artifacts/14919502982)
+
+Local web evidence: 151 frontend regressions, 18 browser scenarios, 38 axe states/0 reported selected-rule violations, no uncaught errors or third-party HTTP in those scenarios. Three Python worker guard tests are not live-capture tests. Full native tests and mocked image requests are not evidence of portal/vision performance or privacy certification.
