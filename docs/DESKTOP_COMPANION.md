@@ -1,6 +1,6 @@
 # Desktop companion and opt-in screen context
 
-**Implementation status (2026-11-19):** implemented on the feature branch. **First full matrix passed at `abda5ec`**, [run 45393415934](https://github.com/ICBMT/focus-traker/actions/runs/45393415934): all four jobs, three-OS Rust/clippy/package checks, and six actual Linux Tauri/Rust/WebKit checks, including the separate companion window, denied main-only IPC, and voluntary rest exit. Physical GNOME/Wayland, real portal capture, live vision-model quality, CPU/RAM/latency, mixed-DPI placement, and signed installers remain separate validation gates. A passing Xvfb test is not a Wayland/capture test. The earlier foundation installer report does **not** include this feature. Every later source revision still needs its own exact-commit matrix; see the run’s SHA before installing.
+**Implementation status:** implemented on the feature branch. **The final feature matrix passed at `3725900748add69a9fb7b5503766f8fab4326c18`**, [run 45396465955](https://github.com/ICBMT/focus-traker/actions/runs/45396465955): all four jobs, three-OS Rust/clippy/package checks, and six actual Linux Tauri/Rust/WebKit checks, including the separate companion window, denied main-only IPC, and voluntary rest exit. This includes the renderer-grant reset, GNOME focus/proxy hardening, nested-dialog safety, clearer screen-sharing disclosure, and optional GI callback-data tolerance. Physical GNOME/Wayland, real portal capture, live vision-model quality, CPU/RAM/latency, mixed-DPI placement, and signed installers remain separate validation gates. A passing Xvfb test is not a Wayland/capture test. The earlier foundation installer report does **not** include this feature. Build evidence and downloads below refer to this exact feature commit; a documentation-only follow-up does not change those binaries. Later implementation revisions need their own exact-commit matrix.
 
 ## Try it
 
@@ -46,7 +46,7 @@ A sharing indicator and **Stop sharing** appear in the main footer and expanded 
 
 ## What AI can and cannot do
 
-- The model produces a short message, a tentative broad activity description, and a boolean *suggestion*, not a fatigue/distraction/health score.
+- The model produces a short message, a tentative broad activity description, and a boolean _suggestion_, not a fatigue/distraction/health score.
 - Screen text is untrusted visual **data**, never system instructions. The model gets no tools, URL fetching, credentials, settings API, or OS actions. Output is strictly schema/length-checked and rendered as escaped text; structured output is not proof that a statement is correct or nonsensitive.
 - Screen-based invitations require at least ten minutes of focus and **two distinct positive suggestions at least a minute apart, within five minutes**. A negative/unknown result resets the streak. **Focus protection** suppresses these discretionary AI nudges. It does not silence the timer reminders the user deliberately enabled.
 - One deterministic policy owns the invitation budget: **ten-minute cooldown, at most three invitations in a rolling hour per app run**, and ten-minute snooze. New sessions do not reset the hourly budget. Dismiss, pause, disabled reminders, and presentation mode clear pending invitations. A suggestion cannot start a timer or open the rest space.
@@ -74,12 +74,16 @@ Record Ubuntu, GNOME, portal, PipeWire, Python/GStreamer, Ollama/model, GPU/driv
 
 Reference implementations/contracts consulted: [ScreenCast portal XML, 1.18.4](https://github.com/flatpak/xdg-desktop-portal/blob/1.18.4/data/org.freedesktop.portal.ScreenCast.xml), [GNOME 46 layout/chrome](https://github.com/GNOME/gnome-shell/blob/gnome-46/js/ui/layout.js), [Ollama API](https://github.com/ollama/ollama/blob/main/docs/api.md), and Tauri 2.12.7's window/webview source. These establish API intent, not successful physical behavior.
 
-## First green feature build (unsigned test artifacts)
+## Final feature build (unsigned test artifacts)
 
-The archive links below are for **`abda5ecf8184ceda9f15249dde3040289a378b2f`**, not later revisions. These CI artifacts expire after 14 days and may require GitHub sign-in. Artifact metadata and job results were inspected; archive contents/system-library legal review and physical installation were not independently inspected here. Signing/publication remains gated.
+The archive links below are for **`3725900748add69a9fb7b5503766f8fab4326c18`**, [successful run 45396465955](https://github.com/ICBMT/focus-traker/actions/runs/45396465955), not later implementation revisions. These installer artifacts expire after 14 days and may require GitHub sign-in. Artifact metadata, exact source SHA, and all four job results were inspected; archive contents/system-library legal review and physical installation were not independently inspected here. These are **unsigned test builds**, not signed public releases. Signing, macOS notarization, physical QA, and publication remain gated.
 
-- [Ubuntu x86_64 deb + AppImage](https://github.com/ICBMT/focus-traker/actions/runs/45393415934/artifacts/14919783252)
-- [Windows x86_64 NSIS](https://github.com/ICBMT/focus-traker/actions/runs/45393415934/artifacts/14920740679)
-- [macOS universal DMG](https://github.com/ICBMT/focus-traker/actions/runs/45393415934/artifacts/14919502982)
+| Platform            | Download                                                                                               |
+| ------------------- | ------------------------------------------------------------------------------------------------------ |
+| Ubuntu/Linux x86_64 | [deb + AppImage](https://github.com/ICBMT/focus-traker/actions/runs/45396465955/artifacts/14921791530) |
+| Windows x86_64      | [NSIS installer](https://github.com/ICBMT/focus-traker/actions/runs/45396465955/artifacts/14922290540) |
+| macOS universal     | [DMG](https://github.com/ICBMT/focus-traker/actions/runs/45396465955/artifacts/14921512098)            |
 
-Local web evidence: 151 frontend regressions, 18 browser scenarios, 38 axe states/0 reported selected-rule violations, no uncaught errors or third-party HTTP in those scenarios. Three Python worker guard tests are not live-capture tests. Full native tests and mocked image requests are not evidence of portal/vision performance or privacy certification.
+The same run includes [browser evidence](https://github.com/ICBMT/focus-traker/actions/runs/45396465955/artifacts/14921656097) and [native WebKit evidence](https://github.com/ICBMT/focus-traker/actions/runs/45396465955/artifacts/14921791536), retained for seven days. Linux annotations report **24 core + 22 native-host Rust tests** and **six real Tauri/Rust/WebKit smoke checks**, all passing. Windows/macOS compiled, passed their native test/clippy jobs, and packaged; their physical desktop interactions were not exercised by the Linux smoke suite.
+
+Web evidence: **151 frontend regressions, 18 browser scenarios, 38 axe states/0 reported selected-rule violations**, no uncaught errors or third-party HTTP in those browser scenarios. Three Python worker guard tests are not live-capture tests. Full native tests and mocked image requests are not evidence of portal/vision performance or privacy certification.
