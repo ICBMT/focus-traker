@@ -25,7 +25,7 @@ export default function Coach({
   const [error, setError] = useState('');
   const generation = useRef(0);
   const scroll = useRef<HTMLDivElement>(null);
-  const nativeAi = ai.source === 'ollama' && ai.connected && !!ai.model;
+  const nativeAi = ai.source === 'ollama' && ai.connected && ai.acknowledged && !!ai.model;
   useEffect(() => {
     scroll.current?.scrollIntoView({ behavior: 'auto' });
   }, [messages, busy]);
@@ -117,7 +117,7 @@ export default function Coach({
           <h3>One small step is enough.</h3>
           <p>
             {nativeAi
-              ? 'A clearly identified AI companion for starting, getting unstuck, or choosing a pause. It cannot see or operate your computer.'
+              ? 'Want to untangle a thought, find a first step, or just talk for a minute? This AI conversation sees only your messages and the task text you approve—not your screen.'
               : 'A few hand-written prompts to help you begin, untangle a thought, or make room for rest. No model or connection required.'}
           </p>
         </div>
@@ -219,7 +219,7 @@ export default function Coach({
         <div className="chat-footer">
           <span>
             <ShieldCheck size={12} />
-            No sensor data. Clears when closed.
+            Text-only conversation. Clears when closed.
           </span>
           {messages.length > 0 && (
             <button

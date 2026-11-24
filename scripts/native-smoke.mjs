@@ -208,6 +208,47 @@ try {
       'voluntary break exit',
     );
   });
+  await check(
+    'the native companion is a separate least-privileged window with voluntary rest',
+    async () => {
+      const mainWindow = await request(`/session/${session}/window`);
+      await click('button[aria-label="Desktop companion preferences"]');
+      await wait(() => text('.companion-capability'), 'desktop companion preferences');
+      await click('button[role="switch"][aria-label="Desktop corner timer"]');
+      const overlay = await wait(
+        async () =>
+          (await request(`/session/${session}/window/handles`)).find(
+            (handle) => handle !== mainWindow,
+          ),
+        'separate companion webview',
+      );
+      await request(`/session/${session}/window`, 'POST', { handle: overlay });
+      await wait(
+        () => execute(nativeScripts.hasSelector, ['.corner-companion']),
+        'small companion entry',
+      );
+      assert.equal(
+        await execute(nativeScripts.hasSelector, ['.app-shell']),
+        false,
+        'overlay must not mount the workspace/persistence hook',
+      );
+      assert.equal(
+        await execute(nativeScripts.mainOnlyDenied),
+        true,
+        'companion cannot invoke main-only commands',
+      );
+      await execute(nativeScripts.focusSelector, ['.corner-tab']);
+      await button('A little rest', '.corner-companion');
+      await request(`/session/${session}/window`, 'POST', { handle: mainWindow });
+      await wait(
+        async () => (await text('.modal h2')).includes('You can put it down for a moment.'),
+        'voluntary rest requested through native boundary',
+      );
+      await button('Leave this space', '.modal');
+      await wait(async () => !(await text('.modal')), 'rest exit without a game or timer');
+      await click('button[role="switch"][aria-label="Desktop corner timer"]');
+    },
+  );
   await check('a real close-time storage failure keeps the window escapable', async () => {
     assert(workspacePath);
     await sleep(600);

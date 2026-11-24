@@ -31,6 +31,12 @@ try {
   });
   await context.addInitScript(() => {
     window.__cameraRequests = 0;
+    window.__screenRequests = 0;
+    if (navigator.mediaDevices)
+      navigator.mediaDevices.getDisplayMedia = async () => {
+        window.__screenRequests++;
+        throw new Error('Screen capture must not be requested in the browser preview.');
+      };
     if (navigator.mediaDevices)
       navigator.mediaDevices.getUserMedia = async () => {
         window.__cameraRequests++;
@@ -225,6 +231,56 @@ try {
       await expect(page.locator('.decision-item')).toContainText('Released');
     },
   );
+  await check(
+    'corner timer is opt-in, keyboard/hover accessible, and offers rest without a forced break',
+    async () => {
+      await nav('Preferences');
+      await page.getByRole('button', { name: 'Desktop companion', exact: true }).click();
+      await expect(page.getByRole('switch', { name: 'Desktop corner timer' })).toHaveAttribute(
+        'aria-checked',
+        'false',
+      );
+      await expect(page.getByRole('button', { name: 'Set up screen context…' })).toBeDisabled();
+      await page.getByRole('switch', { name: 'Desktop corner timer' }).click();
+      await page.getByRole('switch', { name: 'Gentle break invitations' }).click();
+      await page.getByRole('button', { name: /^Show timer,/ }).focus();
+      await expect(
+        page
+          .getByRole('complementary', { name: 'Desktop timer companion' })
+          .getByRole('button', { name: 'A little rest' }),
+      ).toBeVisible();
+      await nav('Focus room');
+      await page.getByRole('button', { name: 'Start focus', exact: true }).click();
+      await page.getByLabel('Your intention', { exact: true }).fill('A companion test session');
+      await page.getByRole('spinbutton', { name: 'Session duration in minutes' }).fill('1');
+      await page.getByRole('button', { name: 'Begin session', exact: true }).click();
+      await advance(61_000);
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      const corner = page.getByRole('complementary', { name: 'Desktop timer companion' });
+      await expect(corner).toContainText('A small finish. A fresh breath.');
+      await expect(page.getByRole('button', { name: 'End break', exact: true })).toHaveCount(0);
+      await page.screenshot({ path: `${artifacts}/corner-invitation.png`, fullPage: true });
+      await corner.getByRole('button', { name: 'A little rest' }).click();
+      await expect(
+        page.getByRole('dialog', { name: 'You can put it down for a moment.' }),
+      ).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Start a 5-minute break' })).toBeVisible();
+      await page.screenshot({ path: `${artifacts}/rest-space.png`, fullPage: true });
+      await page.getByRole('button', { name: 'A tiny garden', exact: false }).click();
+      await page.getByRole('button', { name: 'Leave the garden', exact: true }).click();
+      await page.getByRole('button', { name: 'Done for now', exact: true }).click();
+      await page.getByRole('button', { name: 'Finish session', exact: true }).click();
+      await nav('Preferences');
+      await page.getByRole('button', { name: 'Desktop companion', exact: true }).click();
+      await page.getByRole('switch', { name: 'Presentation mode' }).click();
+      await expect(corner).toHaveCount(0);
+      await page.getByRole('switch', { name: 'Presentation mode' }).click();
+      await page.getByRole('switch', { name: 'Desktop corner timer' }).click();
+      await page.getByRole('switch', { name: 'Gentle break invitations' }).click();
+      expect(await page.evaluate(() => window.__screenRequests)).toBe(0);
+      await page.getByRole('button', { name: 'Your rhythm', exact: true }).click();
+    },
+  );
   await check('theme, export, and history opt-out persist only permitted data', async () => {
     await nav('Preferences');
     await page.getByRole('button', { name: 'Dark', exact: true }).click();
@@ -299,6 +355,9 @@ try {
         keepHistory: true,
         theme: 'light',
         reduceMotion: false,
+        overlayEnabled: false,
+        gentleReminders: false,
+        reminderMinutes: 25,
       },
       intentions: [],
       sessions: [],
@@ -322,12 +381,14 @@ try {
         }
       }, corrupt);
       await page.reload();
+      await advance(50); // let the new renderer run with the deliberately paused functional clock
       await expect(page.getByRole('alert')).toContainText('fields failed validation');
       await nav('Preferences');
       await page.getByRole('button', { name: 'Dark', exact: true }).click();
       await advance(1000);
       expect(await page.evaluate(() => localStorage.getItem('focus.workspace.v1'))).toBe(corrupt);
       await page.reload();
+      await advance(50); // let the new renderer run with the deliberately paused functional clock
       await expect(page.getByRole('alert')).toContainText('fields failed validation');
       expect(await page.evaluate(() => localStorage.getItem('focus.workspace.v1'))).toBe(corrupt);
       await nav('Preferences');
@@ -443,9 +504,23 @@ try {
           await nav(name);
           await audit(name);
           if (name === 'Preferences') {
-            for (const tab of ['AI & companion', 'Privacy & data', 'About Focus']) {
+            for (const tab of [
+              'Desktop companion',
+              'AI & companion',
+              'Privacy & data',
+              'About Focus',
+            ]) {
               await page.getByRole('button', { name: tab, exact: true }).click();
               await audit(`Preferences / ${tab}`);
+              if (tab === 'Desktop companion') {
+                await page.getByRole('switch', { name: 'Desktop corner timer' }).click();
+                await page.getByRole('button', { name: /^Show timer,/ }).focus();
+                await audit('Expanded in-page companion');
+                await page.getByRole('button', { name: 'Open my rest space', exact: true }).click();
+                await audit('Rest space');
+                await page.getByRole('button', { name: 'Leave this space', exact: true }).click();
+                await page.getByRole('switch', { name: 'Desktop corner timer' }).click();
+              }
               if (tab === 'About Focus') {
                 await page
                   .getByRole('button', { name: 'Open-source licenses', exact: true })
@@ -516,6 +591,20 @@ try {
   );
 } catch (error) {
   if (page && !page.isClosed()) {
+    await writeFile(
+      `${artifacts}/failure-dom.json`,
+      JSON.stringify(
+        await page
+          .evaluate(() => ({
+            inert: document.getElementById('root')?.inert,
+            text: document.body.innerText,
+            alerts: [...document.querySelectorAll('[role="alert"]')].map((el) => el.outerHTML),
+          }))
+          .catch(() => null),
+        null,
+        2,
+      ),
+    ).catch(() => {});
     await page.screenshot({ path: `${artifacts}/failure.png`, fullPage: true }).catch(() => {});
     await writeFile(
       `${artifacts}/failure.txt`,

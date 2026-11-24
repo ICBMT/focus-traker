@@ -8,6 +8,9 @@ export const nativeScripts = Object.freeze({
     'const root = arguments[1] ? document.querySelector(arguments[1]) : document; return !!root && [...root.querySelectorAll("button")].some(b => b.textContent.trim() === arguments[0] && !b.disabled);',
   clickButton:
     'const root = arguments[1] ? document.querySelector(arguments[1]) : document; [...root.querySelectorAll("button")].find(b => b.textContent.trim() === arguments[0] && !b.disabled).click();',
+  focusSelector: 'document.querySelector(arguments[0])?.focus(); return true;',
+  mainOnlyDenied:
+    'return window.__TAURI_INTERNALS__.invoke("runtime_info", {}).then(() => false, () => true);',
   timeOrigin: 'return performance.timeOrigin;',
   reloadReady:
     'return performance.timeOrigin !== arguments[0] && document.readyState === "complete";',

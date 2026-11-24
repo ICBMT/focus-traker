@@ -53,6 +53,9 @@ export interface Settings {
   keepHistory: boolean;
   theme: 'light' | 'dark' | 'system';
   reduceMotion: boolean;
+  overlayEnabled: boolean;
+  gentleReminders: boolean;
+  reminderMinutes: number;
 }
 
 export interface Workspace {
@@ -88,6 +91,9 @@ export const DEFAULT_SETTINGS: Settings = {
   keepHistory: true,
   theme: 'light',
   reduceMotion: false,
+  overlayEnabled: false,
+  gentleReminders: false,
+  reminderMinutes: 25,
 };
 
 export const WORK_STYLES: Record<WorkStyle, { label: string; description: string }> = {

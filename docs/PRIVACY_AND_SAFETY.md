@@ -7,9 +7,9 @@
 ## 1. Non-negotiable defaults
 
 - No camera access before a deliberate opt-in; no autostart monitoring without separate approval.
-- No microphone, screen recording, screenshot/OCR collection, clipboard inspection, or face identification.
+- No microphone, clipboard inspection, face identification, or stored screen recordings/OCR archives. The separately authorized **automatic opt-in screen-context** exception is scoped below; never silently enable it.
 - Never persist webcam frames, raw landmarks, key identities, sensor-captured typed content, exact per-key timing, or pointer trails; never send this sensing data over a network.
-- No remote sensing analysis. The camera pipeline stays on-device; the model does not need video. Deliberately entered task/chat text is separate from ambient input sensing and follows its own storage/sharing consent.
+- No remote camera/input sensing analysis. The camera pipeline stays on-device. Deliberately entered task/chat text and optional screen context have separate sharing consent. Numeric loopback is not proof of local-only inference; disclose server-side forwarding/logging risk.
 - No hidden telemetry, advertising SDK, cloud account, automatic support upload, or default history sync.
 - No silent cloud fallback when a local model is unavailable.
 - No mandatory game, guilt message, productivity rank, or punitive lockout.
@@ -27,7 +27,7 @@ Maintain distinct controls for:
 4. Each notification source and the exact data it exposes.
 5. Sending task/chat content to a remote provider.
 6. Sending notification text to that provider, separately from chat permission.
-7. Optional app/domain context, if added later.
+7. Optional automatic screen context, with its own sensitive-content warning, model capability/routing verification, OS source chooser, persistent indicator, Stop sharing, and volatile per-session grant. No raw-image persistence or screen-text instructions.
 8. Desktop glow, sounds, autostart, optional chat history, and commitment/native-lock modes.
 
 Explain what is received, what is kept, what may leave the machine, and the reduced-function alternative before each grant. Record consent version and allow revocation at any time. Permission granted by the OS is not the same as in-product consent.
@@ -41,12 +41,21 @@ Explain what is received, what is kept, what may leave the machine, and the redu
 - Closing, pausing, revoking, locking, or sleeping has explicit lifecycle behavior; never leave an orphan capture process.
 - Offer “pause for a meeting/presentation” manually, because automatic meeting detection is not universally available.
 
+### Current screen-context exception (explicitly requested by the owner)
+
+[DESKTOP_COMPANION.md](DESKTOP_COMPANION.md) is the implementation contract for this new mode. It is **off at launch** and separate from camera/chat permission. The OS maintains a live portal share; the worker reduces its latest-frame output to 960×540 at roughly 1 fps, and at most one image every 90 seconds is sent to the explicitly approved vision-model route during the approved work session. No audio, raw screenshot history, OCR archive, global input, or capture fallback. There is no automatic redaction; screen images and AI descriptions can expose sensitive/third-party data. Explain this before the chooser.
+
+Images, observations, model replies and screen grants are volatile and excluded from workspace JSON, exports, and intentional logs. The local model server can still log, retain or forward requests; its configuration is outside the app's control. Stop/pause/session change/presentation/model change/close end the grant and reject late replies. Lock/sleep signals have explicit shutdown handling but require physical platform verification. No memory-zeroization or secure-erasure guarantee.
+
+Screen content is untrusted data. The model has no tools, settings access or OS authority. Its bounded output is rendered as text. It can suggest a change of pace, not diagnose fatigue, distraction, health, emotions or engagement. Deterministic elapsed-time rules, repeated optional suggestions, cooldowns and budgets govern invitations; only a user action opens rest/chat. Gentler language is not a claim that model output is reliable or safe in every case.
+
 ## 3. Data inventory and retention
 
 Proposed defaults, to be confirmed before implementation:
 
 | Data | Where | Default retention / control |
 | --- | --- | --- |
+| Optional screen images / short descriptions | Bounded worker/native/request RAM; never ordinary saved data | Latest frame/description only, clear on stop; OS/server retention remains outside app control |
 | Camera frames and landmark arrays | Volatile capture/worker memory only | Dispose after the frame; never logged or exported |
 | Individual OS input events | Native callback/constant-size accumulator only | Aggregate immediately; previous keyboard time and optional previous pointer position/time are overwritten, never an event sequence; clear on gaps/pause |
 | Input-rhythm feature windows | Bounded volatile Rust state | At most about two minutes of coarse summaries; no raw timing traces or ordinary history |
@@ -128,7 +137,7 @@ Use native credential stores with explicitly tested backends: Linux Secret Servi
 | Break/overlay traps input or survives a crash | No keyboard/pointer grab; emergency controls; watchdog/cancel; stop overlays on lifecycle changes; fail open |
 | Lost/expired source credentials | Disable that integration and explain; no scraping or surprise fallback credentials |
 | Wrong model/license or tampered download | Explicit download consent; checksummed/pinned assets, model manifest, license notices, release license review |
-| Debug/test transport ships to users | Compile-time test-only feature, production artifact inspection, no embedded automation server in release |
+| Debug/test transport ships to users | External dev-only WebDriver, artifact inspection, no general automation server. The intentional authenticated GNOME bridge is restricted to redacted status/enumerated user controls; no workspace, AI, or pixel endpoint |
 | Malicious/rolled-back update | Audited updater, verified artifact/version binding, negative tests; separate OS signing/notarization and key custody |
 
 A local app is not a sandbox against malware already running as the same user or administrator. State this honestly rather than promising absolute privacy.
@@ -155,7 +164,7 @@ A local app is not a sandbox against malware already running as the same user or
 
 ### Games and coaching
 
-- Games are finite, optional, and user-initiated after a boredom/stuck check-in, with no streak, loot, competitive ranking, or endless loop.
+- Games are finite, optional, and user-initiated after a voluntary rest invitation/check-in, with no streak, loot, competitive ranking, or endless loop.
 - A screen game/chat is not counted as eye rest.
 - The coach identifies itself as AI, is nonjudgmental, and does not claim to replace friends, healthcare, or therapy.
 - No dependency-building language, emotional pressure, shaming, or guaranteed mood improvement.

@@ -53,6 +53,10 @@
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
       }
+    },
+    "resources": {
+      "resources/screen_portal.py": "screen_portal.py",
+      "../integrations/gnome/focus-companion@icbmt": "gnome/focus-companion@icbmt"
     }
   }
 }

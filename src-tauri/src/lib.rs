@@ -1,4 +1,6 @@
 mod ai;
+mod companion;
+mod screen;
 mod storage;
 
 use focus_core::{
@@ -229,12 +231,120 @@ fn cancel_chat(window: WebviewWindow, state: State<ai::AiService>) -> Result<(),
     Ok(())
 }
 
+#[tauri::command]
+fn companion_configure(
+    window: WebviewWindow,
+    app: tauri::AppHandle,
+    config: focus_core::companion::Config,
+) -> Result<companion::Status, String> {
+    authorize(&window)?;
+    companion::configure(&app, config)
+}
+#[tauri::command]
+fn companion_install_gnome(window: WebviewWindow, app: tauri::AppHandle) -> Result<String, String> {
+    authorize(&window)?;
+    companion::install_gnome(&app)
+}
+#[tauri::command]
+fn companion_status(
+    window: WebviewWindow,
+    app: tauri::AppHandle,
+) -> Result<companion::Status, String> {
+    companion::authorize_companion(&window)?;
+    companion::status(&app)
+}
+#[tauri::command]
+fn companion_action(
+    window: WebviewWindow,
+    app: tauri::AppHandle,
+    action: companion::Action,
+) -> Result<(), String> {
+    companion::authorize_companion(&window)?;
+    companion::action(&app, action)
+}
+#[tauri::command]
+fn companion_expand(
+    window: WebviewWindow,
+    app: tauri::AppHandle,
+    expanded: bool,
+) -> Result<(), String> {
+    companion::authorize_companion(&window)?;
+    companion::expand(&app, expanded)
+}
+#[tauri::command]
+async fn model_capabilities(
+    window: WebviewWindow,
+    state: State<'_, ai::AiService>,
+    port: u16,
+    model: String,
+) -> Result<ai::Capabilities, String> {
+    authorize(&window)?;
+    ai::capabilities(&state, port, &model).await
+}
+#[tauri::command]
+async fn screen_start(
+    window: WebviewWindow,
+    app: tauri::AppHandle,
+    port: u16,
+    model: String,
+    consented: bool,
+) -> Result<(), String> {
+    authorize(&window)?;
+    screen::start(app, port, model, consented).await
+}
+#[tauri::command]
+fn screen_stop(window: WebviewWindow, app: tauri::AppHandle) -> Result<(), String> {
+    authorize(&window)?;
+    app.state::<screen::ScreenService>().stop();
+    app.state::<ai::AiService>().cancel();
+    if let Ok(mut inner) = app.state::<companion::Companion>().inner.lock() {
+        inner.message = None;
+    }
+    Ok(())
+}
+#[tauri::command]
+fn screen_status(
+    window: WebviewWindow,
+    state: State<screen::ScreenService>,
+) -> Result<screen::ScreenStatus, String> {
+    authorize(&window)?;
+    Ok(state.status())
+}
+#[tauri::command]
+async fn screen_analyze(
+    window: WebviewWindow,
+    app: tauri::AppHandle,
+) -> Result<ai::ScreenAdvice, String> {
+    authorize(&window)?;
+    screen::analyze(app).await
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(SessionState::default())
         .manage(storage::StoreGate::default())
         .manage(ai::AiService::new())
+        .manage(companion::Companion::default())
+        .manage(screen::ScreenService::default())
+        .on_window_event(|window, event| {
+            let app = window.app_handle();
+            if window.label() == "companion" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = companion::action(app, companion::Action::Disable);
+                }
+            } else if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { .. } = event {
+                    app.state::<screen::ScreenService>().stop();
+                    app.state::<ai::AiService>().cancel();
+                }
+                if let tauri::WindowEvent::Destroyed = event {
+                    companion::shutdown(app);
+                    app.exit(0);
+                }
+            }
+        })
         .setup(|app| {
             let directory = app.path().app_data_dir()?;
             let ownership = storage::InstanceGuard::acquire(&directory).map_err(|message| {
@@ -253,6 +363,18 @@ pub fn run() {
                     if let Ok(mut engine) = state.engine.lock() {
                         engine.tick(state.mono(), wall_ms());
                     };
+                    if handle.state::<screen::ScreenService>().active() {
+                        let running = state
+                            .engine
+                            .lock()
+                            .map(|s| s.snapshot().phase == focus_core::session::Phase::Focus)
+                            .unwrap_or(false);
+                        if !running {
+                            handle.state::<screen::ScreenService>().stop();
+                            handle.state::<ai::AiService>().cancel();
+                        }
+                    }
+                    companion::sync_window(&handle);
                 }
             });
             Ok(())
@@ -273,8 +395,36 @@ pub fn run() {
             export_workspace,
             ollama_models,
             ollama_chat,
-            cancel_chat
+            cancel_chat,
+            companion_configure,
+            companion_install_gnome,
+            companion_status,
+            companion_action,
+            companion_expand,
+            model_capabilities,
+            screen_start,
+            screen_stop,
+            screen_status,
+            screen_analyze
         ])
-        .run(tauri::generate_context!())
-        .expect("could not start Focus");
+        .build(tauri::generate_context!())
+        .expect("could not start Focus")
+        .run(|app, event| match event {
+            tauri::RunEvent::ExitRequested { api, .. } => {
+                if !app
+                    .state::<companion::Companion>()
+                    .stopped
+                    .load(std::sync::atomic::Ordering::SeqCst)
+                {
+                    if let Some(main) = app.get_webview_window("main") {
+                        api.prevent_exit();
+                        app.state::<screen::ScreenService>().stop();
+                        app.state::<ai::AiService>().cancel();
+                        let _ = main.close(); // Same pause/drain/save/failed-close UI as the window control.
+                    }
+                }
+            }
+            tauri::RunEvent::Exit => companion::shutdown(app),
+            _ => {}
+        });
 }

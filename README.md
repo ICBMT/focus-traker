@@ -6,17 +6,19 @@
 
 ## What works now
 
-This is a working **release candidate for the foundation slice**, not the entire researched product or a validated public production release. The owner selected MIT licensing and signed public distribution; signing/device approval remains gated. See [release preparation](docs/RELEASE.md).
+This branch extends the **validated foundation release candidate** with a desktop companion and separate opt-in screen-context implementation. New native/platform behavior needs its own exact-commit checks and physical validation; it is not yet a validated public production release. The owner selected MIT licensing and signed public distribution; signing/device approval remains gated. See [release preparation](docs/RELEASE.md).
 
 - **Intentions and task sessions** — deep work, reading/learning, and creative work; adjustable durations; pause/resume; early finish; optional breaks.
 - **A calm workspace** — focus room, real-data daily summaries and seven-day chart, searchable intentions, voluntary local check-ins, light/dark/system themes, and reduced motion.
-- **Respectful rest** — no automatic break, OS lock, or puzzle requirement. An optional three-pair garden game can be left unfinished.
+- **Desktop companion** — an opt-in corner-hover timer, GNOME/Wayland Shell integration with a compact-window fallback, snoozable/capped invitations, presentation mode, and no automatic focus-stealing break screen. See [setup and honest platform limits](docs/DESKTOP_COMPANION.md).
+- **Respectful rest** — a dedicated rest space, optional three-pair garden game or chat, and an immediate exit. No automatic break, OS lock, or puzzle requirement.
+- **Separate opt-in screen context (Linux)** — OS portal source chooser, bounded automatic samples to a verified vision-capable Ollama route, visible stop-sharing, no raw-image persistence, and no fatigue/distraction diagnosis. Actual capture/model behavior still requires physical QA.
 - **Local data controls** — validated preferences, intentions, up to 30 days/500 session summaries, export, deletion, and paused recovery after a restart. Unreadable data is not silently overwritten.
 - **Offline companion** — clearly labeled hand-written guidance. Native-only Ollama discovery/chat code is also included, but **has not been exercised against a model server here**.
 - **An honest sensor lab** — explicitly opt-in webcam **preview**, plus a **test-pad-only** keyboard-cadence experiment and optional pointer/editing-key counts. Camera lifecycle tests use synthetic streams, not real hardware.
 - **Notification rules sandbox** — synthetic examples with explicit reasons, urgent bypass, conservative uncertain-item handling, and a releasable digest. **No real source is connected.**
 
-There is **no global input/idle adapter, webcam inference, mood/boredom/flow detector, real notification suppression, screen-edge overlay, remote API-key provider, autostart, or OS-lock integration**. The app is useful with every sensor and AI option off.
+There is **no global input/idle adapter, webcam inference, mood/boredom/flow detector, real notification suppression, remote API-key provider, autostart, or OS-lock integration**. The app is useful with every sensor and AI option off.
 
 ## Run the web preview
 
@@ -57,24 +59,24 @@ The root Cargo workspace produces `target/release/focus-desktop` (`.exe` on Wind
 
 ## Local Ollama (optional, native only)
 
-Nothing is discovered, downloaded, or contacted automatically.
+No model is discovered or downloaded without your action. Text chat requires each Send. After **separate screen-context opt-in**, the chosen vision route is called automatically at most every 90 seconds during that approved work session.
 
 1. Install/configure Ollama yourself and choose a model whose license fits your use. This app does not install model weights.
 2. Configure the server’s **no-cloud settings** if you require local-only inference; consult the [Ollama FAQ](https://docs.ollama.com/faq). A loopback address and a model name do **not** prove that the server never routes to cloud inference.
 3. In **Preferences → AI & companion**, read the routing warning, choose the port (default `11434`), and explicitly discover installed models.
-4. Select a model, then open the companion. Each Send is deliberate. Current task text is excluded unless you check the context box. Sensor summaries, camera frames, and history are never supplied to the model.
+4. Select a model, then open the companion. Each Send is deliberate. Current task text is excluded unless you check the context box. Text chat receives no sensor summaries, camera frames, screen images/descriptions, or history. The independent optional screen-context route has its own consent and indicator.
 
-The Rust client uses numeric loopback only, no proxy/redirects, bounded context/response sizes, a 45-second chat timeout, and one chat request at a time. Known `:cloud` names are excluded; this is **not** independent verification of server routing. Cancel drops the client request; the server may continue generating. There is no remote fallback or credential collection.
+The Rust client uses numeric loopback only, no proxy/redirects, bounded context/response sizes, a 45-second chat timeout, and one chat request at a time. Known `:cloud`/`-cloud` names are excluded; screen context additionally verifies vision metadata and rejects declared remote routes; this is **not** independent verification of server routing. Cancel drops the client request; the server may continue generating. There is no remote fallback or credential collection.
 
 The original `qwen2.5-coder:3b` example has Qwen Research License restrictions; do not assume it is unrestricted commercial software. The [research register](docs/RESEARCH.md) distinguishes model-download size from RAM requirements. **16 GB RAM/no dedicated GPU is the user’s reference machine, not a measured minimum or performance guarantee.**
 
 ## Privacy and recovery
 
-- No analytics, account, advertising SDK, camera recording, or automatic provider calls.
+- No analytics, account, advertising SDK, camera recording, or unsolicited provider calls. Automatic screen-context calls require a separate volatile grant; see [the data boundary](docs/DESKTOP_COMPANION.md).
 - Browser: versioned local storage. Desktop: bounded plaintext `workspace-v1.json` in Tauri’s OS app-data directory, with staged replacement and Unix owner-only file/directory permissions in the source implementation. **Not encrypted storage or SQLite yet.**
 - An active task/checkpoint can be saved even when summary history is off. Recovery always requires a deliberate action and stays paused; sensors, chat, and tests never restore automatically.
 - Edits are debounced by about 300 ms; active checkpoints are approximately every 15 seconds and on phase changes. Native close requests pause/stop optional activity and flush before destroying the window; a failed save keeps it open with explicit Keep open, Retry save & close, and Quit without saving choices. Browser pagehide performs a synchronous final save before releasing ownership. Force-quit, OS termination, an in-flight browser command, or storage failure can still lose recent unsaved edits/time. A gap over 15 seconds pauses rather than credits missing time. The browser adapter can pause when its page is heavily throttled; the native host has an independent Rust tick.
-- Sensor summaries/comparison samples, example inboxes, chats, provider choices, and games are volatile. Stopping a test or leaving its page clears the relevant sensor experiment; hiding the page stops capture/testing.
+- Screen grants/images/descriptions, sensor summaries/comparison samples, example inboxes, chats, provider choices, and games are volatile. Stopping a test or leaving its page clears the relevant sensor experiment; hiding the page stops the foreground camera/test-pad experiments. Opted-in screen sharing is deliberately cross-app during the work session and has separate stop/pause/lock/close handling.
 - Exports contain **task text**, preferences, and session summaries—not sensors, model credentials, chat, or the active checkpoint. Protect exported files yourself.
 - Delete/reset cannot guarantee forensic erasure from storage, swap, backups, or existing exports. OS disk encryption is recommended for sensitive task names.
 
@@ -97,7 +99,9 @@ cargo test --workspace --locked
 
 Browser E2E builds production assets, starts a temporary preview on port `1421`, and closes it when done. Prefer `npx playwright install chromium`; minimal Linux x64 sandboxes can use the bundled dev-only Chromium fallback. Screenshots/test artifacts go under ignored `.cache/e2e/`, never sensor recordings.
 
-Observed on **2026-11-19**: **131 frontend/domain/component tests**, **3 release-integrity gate tests + 3 native-harness tests**, and **17 browser scenarios passed** locally. Rust workspace tests passed remotely on all three OS jobs at `1ce3c48` (Linux/macOS: **19 core + 16 native-host tests**; Windows: **19 + 13**, excluding Unix-only cases). The browser suite includes **32 automated accessibility scans** over both themes/screens/dialogs, with no reported violations in the selected WCAG A/AA checks, and no third-party HTTP requests or uncaught errors in those scenarios. This is not a complete accessibility/security audit or evidence of native/sensor accuracy. Native-host tests cover storage/locking/export and bounded/cancellable HTTP-mocked Ollama calls; the successful Linux native smoke adds actual Tauri/Rust/WebKit coverage for five baseline flows. HTTP mocks are not a live-model benchmark.
+Foundation baseline on **2026-11-19**: **131 frontend/domain/component tests**, **3 release-integrity gate tests + 3 native-harness tests**, and **17 browser scenarios passed** locally. Rust workspace tests passed remotely on all three OS jobs at `1ce3c48` (Linux/macOS: **19 core + 16 native-host tests**; Windows: **19 + 13**, excluding Unix-only cases). The browser suite includes **32 automated accessibility scans** over both themes/screens/dialogs, with no reported violations in the selected WCAG A/AA checks, and no third-party HTTP requests or uncaught errors in those scenarios. This is not a complete accessibility/security audit or evidence of native/sensor accuracy. Native-host tests cover storage/locking/export and bounded/cancellable HTTP-mocked Ollama calls; the successful Linux native smoke adds actual Tauri/Rust/WebKit coverage for five baseline flows. HTTP mocks are not a live-model benchmark.
+
+Current desktop-companion changes: **151 frontend tests**, **18 browser scenarios and 38 axe states** passed locally, with no reported selected-rule violations, third-party HTTP requests or uncaught errors. New full native evidence will be recorded after exact-commit CI. This is not physical GNOME/PipeWire or live-model validation.
 
 ## Repository map
 

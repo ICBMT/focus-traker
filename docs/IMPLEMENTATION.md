@@ -44,7 +44,13 @@
 - Turning history off clears summary records. An active task checkpoint may still be saved for recovery. Re-enabling history does not resurrect already-processed terminal records from the live snapshot.
 - Storage is plaintext, not encrypted. Exclusive process/tab ownership prevents competing saved-data writers. Import/SQLite migration and independent background checkpoint persistence remain open work.
 
-## Evidence observed in this workspace
+## Desktop companion extension (new work)
+
+See [DESKTOP_COMPANION.md](DESKTOP_COMPANION.md) for the new corner timer, native least-privilege webview, GNOME Shell integration, deterministic voluntary reminders, rest space, gentler AI prompt, and separately authorized Linux portal/vision path. This supersedes earlier foundation-only statements that no overlay/screen path exists; it does not imply physical validation. The main workspace still owns persistence and close-save behavior. v1 preferences migrate additively; no screen grant/image/description is persisted.
+
+Local new-work evidence: **151 frontend tests (10 files), 18 browser scenarios, 38 axe states/0 reported violations**, typecheck/build, and six release/harness regressions passed. Full-host compilation and the new native multi-window smoke require the upcoming exact-commit matrix. No real GNOME, portal stream, camera or model call occurred locally.
+
+## Foundation evidence observed in this workspace
 
 | Check | Observed result |
 | --- | --- |

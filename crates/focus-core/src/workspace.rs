@@ -57,6 +57,15 @@ pub struct Settings {
     keep_history: bool,
     theme: Theme,
     reduce_motion: bool,
+    #[serde(default)]
+    overlay_enabled: bool,
+    #[serde(default)]
+    gentle_reminders: bool,
+    #[serde(default = "reminder_default")]
+    reminder_minutes: u32,
+}
+fn reminder_default() -> u32 {
+    25
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -68,6 +77,9 @@ impl Default for Settings {
             keep_history: true,
             theme: Theme::Light,
             reduce_motion: false,
+            overlay_enabled: false,
+            gentle_reminders: false,
+            reminder_minutes: 25,
         }
     }
 }
@@ -100,6 +112,7 @@ impl Workspace {
             || !(1..=180).contains(&s.focus_minutes)
             || !(1..=30).contains(&s.break_minutes)
             || !(15..=480).contains(&s.daily_goal_minutes)
+            || !(10..=90).contains(&s.reminder_minutes)
         {
             return Err(
                 "Workspace version or bounds are invalid; the existing file was not modified."
@@ -225,5 +238,19 @@ mod tests {
         rest.duration_ms = 31 * 60_000;
         data.sessions.push(rest);
         assert!(data.validate(NOW).is_err());
+    }
+    #[test]
+    fn old_v1_preferences_migrate_additively_without_restoring_screen_consent() {
+        let mut value = serde_json::to_value(Workspace::default()).unwrap();
+        for key in ["overlayEnabled", "gentleReminders", "reminderMinutes"] {
+            value["settings"].as_object_mut().unwrap().remove(key);
+        }
+        let mut restored: Workspace = serde_json::from_value(value.clone()).unwrap();
+        restored.validate(NOW).unwrap();
+        assert!(!restored.settings.overlay_enabled);
+        assert!(!restored.settings.gentle_reminders);
+        assert_eq!(restored.settings.reminder_minutes, 25);
+        value["settings"]["screenSharing"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<Workspace>(value).is_err());
     }
 }

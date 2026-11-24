@@ -29,6 +29,11 @@ export function parseWorkspace(raw: unknown, now = Date.now()): Workspace {
       ? (settings.theme as 'light' | 'dark' | 'system')
       : 'light',
     reduceMotion: settings.reduceMotion === true,
+    overlayEnabled: settings.overlayEnabled === true,
+    gentleReminders: settings.gentleReminders === true,
+    reminderMinutes: finite(settings.reminderMinutes, 10, 90)
+      ? Math.round(settings.reminderMinutes)
+      : 25,
   };
   const intentionsSeen = new Set<string>();
   if (Array.isArray(raw.intentions))
@@ -140,6 +145,15 @@ export function loadBrowserWorkspace(now = Date.now()): {
     // must be stricter: never autosave repaired defaults over a corrupt v1 file.
     // Retention and the explicit history opt-out are the only silent removals.
     const expected = { ...parsed };
+    // Additive v1 migration only: absent new preferences receive safe defaults.
+    // Present-but-invalid and unknown fields still preserve the corrupt original.
+    if (object(parsed.settings))
+      expected.settings = {
+        overlayEnabled: false,
+        gentleReminders: false,
+        reminderMinutes: 25,
+        ...parsed.settings,
+      };
     if (Array.isArray(parsed.sessions) && object(parsed.settings))
       expected.sessions =
         parsed.settings.keepHistory === false

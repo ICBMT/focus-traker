@@ -19,6 +19,7 @@ import {
   LockKeyhole,
   Menu,
   MessageCircle,
+  Monitor,
   Pause,
   Play,
   Plus,
@@ -31,6 +32,10 @@ import {
   X,
 } from 'lucide-react';
 import { useWorkspace } from './hooks/useWorkspace';
+import { useCompanion } from './hooks/useCompanion';
+import type { ScreenAdvice } from './core/companion';
+import { CompanionPanel } from './components/CompanionPanel';
+import RestSpace from './components/RestSpace';
 import { runtime } from './lib/runtime';
 import { emptyAiConnection } from './core/ai';
 import type { AiConnection } from './core/ai';
@@ -45,7 +50,7 @@ import RestGarden from './components/RestGarden';
 import { Button, IconButton, Modal, ModalSuppressionContext } from './components/ui';
 
 type Dialog = 'start' | 'intention' | 'break' | 'finish' | 'search' | 'checkIn' | null;
-type SettingsTab = 'general' | 'ai' | 'privacy' | 'about';
+type SettingsTab = 'general' | 'desktop' | 'ai' | 'privacy' | 'about';
 const pages = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard, group: 'workspace' },
   { id: 'room', label: 'Focus room', icon: Timer, group: 'workspace' },
@@ -64,6 +69,8 @@ export default function App() {
   const [recoveryVisible, setRecoveryVisible] = useState(true);
   const [coach, setCoach] = useState(false);
   const [garden, setGarden] = useState(false);
+  const [restSpace, setRestSpace] = useState(false);
+  const [restMessage, setRestMessage] = useState<ScreenAdvice | null>(null);
   const [ai, setAi] = useState<AiConnection>(emptyAiConnection);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftMode, setDraftMode] = useState<WorkStyle>('deep');
@@ -90,6 +97,45 @@ export default function App() {
     main.current?.scrollTo({ top: 0, behavior: 'auto' });
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, []);
+
+  const openRestSpace = async (message: ScreenAdvice | null = null) => {
+    if (app.recovery) {
+      setRecoveryVisible(true);
+      return;
+    }
+    if (dialog || coach || garden || restSpace || app.closeBlocked || app.busy || !app.ready)
+      return;
+    await companion.stop();
+    if (['focus', 'break'].includes(app.session.phase)) {
+      const paused = await app.run(() => runtime.pause());
+      if (!paused) return;
+    }
+    setRestMessage(message);
+    setRestSpace(true);
+  };
+  const companion = useCompanion({
+    settings: app.data.settings,
+    session: app.session,
+    ai,
+    info: app.info,
+    ready: app.ready,
+    blocked: !!dialog || coach || garden || restSpace || app.closeBlocked || !!app.recovery,
+    onAction: (action, message) => {
+      if (action === 'disable') app.updateSettings({ overlayEnabled: false });
+      if (action === 'stopSharing') notify('Screen sharing stopped. It won’t restart by itself.');
+      if (action === 'open') navigate('room');
+      if (action === 'pause') void app.run(() => runtime.pause());
+      if (action === 'resume' && !app.recovery && !dialog && !app.closeBlocked)
+        void app.run(() => runtime.resume());
+      if (action === 'rest') void openRestSpace(message);
+      if (action === 'talk' && !dialog && !app.closeBlocked && !app.recovery && !restSpace) {
+        void (async () => {
+          if (app.session.phase === 'focus' && !(await app.run(() => runtime.pause()))) return;
+          setCoach(true);
+        })();
+      }
+    },
+  });
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -118,6 +164,7 @@ export default function App() {
         event.key.toLowerCase() === 'k' &&
         !coach &&
         !garden &&
+        !restSpace &&
         !dialog &&
         !app.recovery
       ) {
@@ -129,7 +176,7 @@ export default function App() {
     };
     window.addEventListener('keydown', shortcuts);
     return () => window.removeEventListener('keydown', shortcuts);
-  }, [coach, garden, dialog, app.recovery]);
+  }, [coach, garden, restSpace, dialog, app.recovery]);
 
   const openStart = (title = '', mode: WorkStyle = 'deep') => {
     if (app.recovery) {
@@ -206,7 +253,10 @@ export default function App() {
       'Session paused. Sensor tests stopped and model requests cancelled. Resume each feature only when you choose.',
     );
   };
-  const changeAi = (patch: Partial<AiConnection>) => setAi((old) => ({ ...old, ...patch }));
+  const changeAi = (patch: Partial<AiConnection>) => {
+    void companion.stop();
+    setAi((old) => ({ ...old, ...patch }));
+  };
   const sourceTitle = pages.find((p) => p.id === page)?.label ?? 'Overview';
 
   const content = (
@@ -356,6 +406,12 @@ export default function App() {
             >
               <Pause size={17} />
             </IconButton>
+            <IconButton
+              label="Desktop companion preferences"
+              onClick={() => navigate('settings', 'desktop')}
+            >
+              <Monitor size={18} />
+            </IconButton>
             <IconButton label="Notification coverage" onClick={() => navigate('notifications')}>
               <Bell size={18} />
             </IconButton>
@@ -490,6 +546,9 @@ export default function App() {
                 <Preferences
                   key={settingsTab}
                   initialTab={settingsTab}
+                  companion={companion}
+                  session={app.session}
+                  onRest={() => void openRestSpace(companion.advice)}
                   settings={app.data.settings}
                   info={app.info}
                   canSave={app.canSave}
@@ -500,7 +559,14 @@ export default function App() {
                   onClear={async (all) => {
                     setToast(null);
                     const cleared = await app.clearData(all);
-                    if (all && cleared) setAi(emptyAiConnection());
+                    if (cleared) {
+                      void companion.stop();
+                      setRestMessage(null);
+                      if (all) {
+                        setAi(emptyAiConnection());
+                        companion.setPresentation(false);
+                      }
+                    }
                     if (cleared)
                       notify(
                         all
@@ -517,11 +583,22 @@ export default function App() {
         </main>
         <footer className="app-footer">
           <span>
-            <span className={`status-dot ${sensorsActive ? 'active' : 'inactive'}`} />
-            {sensorsActive
-              ? 'Local sensor experiment active'
-              : 'Sensors off. Your space is private.'}
+            <span
+              className={`status-dot ${sensorsActive || companion.sharing ? 'active' : 'inactive'}`}
+            />
+            {companion.sharing
+              ? 'Screen context ON · selected source shared with your model'
+              : companion.starting
+                ? 'Screen-sharing chooser open'
+                : sensorsActive
+                  ? 'Local sensor experiment active'
+                  : 'Sensors off. Your space is private.'}
           </span>
+          {(companion.sharing || companion.starting) && (
+            <button className="sharing-stop" onClick={() => void companion.stop()}>
+              {companion.starting ? 'Cancel screen sharing' : 'Stop sharing'}
+            </button>
+          )}
           <button onClick={() => navigate('settings', 'about')}>
             <Heart size={12} />
             Made for a little more balance
@@ -974,6 +1051,68 @@ export default function App() {
           }}
         />
       )}
+      {restSpace && !app.closeBlocked && (
+        <RestSpace
+          session={app.session}
+          message={restMessage}
+          minutes={app.data.settings.breakMinutes}
+          busy={app.busy}
+          onClose={() => {
+            setRestSpace(false);
+            setRestMessage(null);
+          }}
+          onResume={() => {
+            void app
+              .run(() => runtime.resume())
+              .then((result) => {
+                if (result) {
+                  setRestSpace(false);
+                  setRestMessage(null);
+                }
+              });
+          }}
+          onBreak={() => {
+            void app
+              .run(() =>
+                runtime.startBreak(crypto.randomUUID(), app.data.settings.breakMinutes * 60_000),
+              )
+              .then((result) => {
+                if (result) {
+                  setRestSpace(false);
+                  setRestMessage(null);
+                  navigate('room');
+                }
+              });
+          }}
+          onGarden={() => {
+            setRestSpace(false);
+            setRestMessage(null);
+            setGarden(true);
+          }}
+          onTalk={() => {
+            setRestSpace(false);
+            setRestMessage(null);
+            setCoach(true);
+          }}
+        />
+      )}
+      {app.info.kind === 'web' &&
+        app.data.settings.overlayEnabled &&
+        !companion.presentation &&
+        !app.closeBlocked &&
+        !dialog &&
+        !coach &&
+        !garden &&
+        !restSpace && (
+          <CompanionPanel
+            status={{
+              ...companion.status,
+              phase: app.session.phase,
+              remainingMs: app.session.remainingMs,
+            }}
+            onAction={companion.request}
+          />
+        )}
       {garden && !app.closeBlocked && <RestGarden onClose={() => setGarden(false)} />}
       {toast && (
         <div className="toast" role="status">

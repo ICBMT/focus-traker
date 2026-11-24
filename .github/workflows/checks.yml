@@ -29,6 +29,11 @@ jobs:
       - run: npm run format:check
       - run: npm run check:release
       - run: npm run test:release
+      - name: Validate optional Linux integration source (no live desktop)
+        run: |
+          node --check integrations/gnome/focus-companion@icbmt/extension.js
+          python3 -m py_compile src-tauri/resources/screen_portal.py
+          python3 -m unittest discover -s tests -p 'test_*.py'
       - run: npm run typecheck
       - run: npm test
       - run: npx playwright install --with-deps chromium

@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "companion-window",
+  "description": "Bundled compact timer: redacted status, enumerated requests to the main workspace, and its own expansion only. No workspace, AI, capture, shell, or general network access.",
+  "windows": ["companion"],
+  "permissions": [
+    "allow-companion-status",
+    "allow-companion-action",
+    "allow-companion-expand"
+  ]
+}

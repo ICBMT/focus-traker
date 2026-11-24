@@ -22,9 +22,15 @@ import type { AiConnection } from '../core/ai';
 import type { RuntimeInfo, Settings as Preferences } from '../core/types';
 import { runtime } from '../lib/runtime';
 import { Button, Modal, Pill, Toggle } from './ui';
+import CompanionSettings from './CompanionSettings';
+import type { CompanionController } from '../hooks/useCompanion';
+import type { SessionSnapshot } from '../core/types';
 
 export default function Settings({
   initialTab = 'general',
+  companion,
+  session,
+  onRest,
   settings,
   info,
   canSave,
@@ -36,6 +42,9 @@ export default function Settings({
   onNotice,
 }: {
   initialTab?: string;
+  companion: CompanionController;
+  session: SessionSnapshot;
+  onRest: () => void;
   settings: Preferences;
   info: RuntimeInfo;
   canSave: boolean;
@@ -111,6 +120,7 @@ export default function Settings({
         <div className="settings-nav" aria-label="Settings categories">
           {[
             { id: 'general', icon: SlidersHorizontal, label: 'Your rhythm' },
+            { id: 'desktop', icon: Monitor, label: 'Desktop companion' },
             { id: 'ai', icon: Sparkles, label: 'AI & companion' },
             { id: 'privacy', icon: ShieldCheck, label: 'Privacy & data' },
             { id: 'about', icon: Heart, label: 'About Focus' },
@@ -129,6 +139,17 @@ export default function Settings({
           ))}
         </div>
         <div className="settings-content">
+          {tab === 'desktop' && (
+            <CompanionSettings
+              controller={companion}
+              settings={settings}
+              session={session}
+              info={info}
+              ai={ai}
+              onUpdate={onUpdate}
+              onRest={onRest}
+            />
+          )}
           {tab === 'general' && (
             <>
               <section className="card settings-card">
@@ -436,7 +457,7 @@ export default function Settings({
                 <div className="privacy-promises">
                   <span>
                     <Check size={16} />
-                    No camera recordings or sensor uploads.
+                    No camera recordings. Screen sharing needs separate consent.
                   </span>
                   <span>
                     <Check size={16} />

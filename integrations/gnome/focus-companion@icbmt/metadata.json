@@ -1,0 +1,8 @@
+{
+  "uuid": "focus-companion@icbmt",
+  "name": "Focus desktop companion",
+  "description": "An optional corner-hover timer for the Focus desktop app. A private, authenticated loopback bridge exposes only a redacted timer and voluntary UI actions. No screenshots, input monitoring, or workspace access.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "version": 1,
+  "url": "https://github.com/ICBMT/focus-traker"
+}

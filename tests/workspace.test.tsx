@@ -372,6 +372,7 @@ describe('failed-close user controls', () => {
       expect(screen.queryByRole('dialog')).toBeNull();
       expect(document.getElementById('root')!.inert).toBe(false);
       expect(document.body.style.overflow).not.toBe('hidden');
+      await flush();
     },
   );
   it('the Retry button sends a normal close request, not a forced exit', async () => {

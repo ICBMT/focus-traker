@@ -27,3 +27,5 @@ test-results/
 /public/licenses/ALL-THIRD-PARTY-NOTICES.txt
 /public/licenses/DEPENDENCIES.json
 /src-tauri/release-signing.generated.json
+
+__pycache__/

@@ -16,6 +16,16 @@ fn main() {
         "ollama_models",
         "ollama_chat",
         "cancel_chat",
+        "companion_configure",
+        "companion_install_gnome",
+        "companion_status",
+        "companion_action",
+        "companion_expand",
+        "model_capabilities",
+        "screen_start",
+        "screen_stop",
+        "screen_status",
+        "screen_analyze",
     ];
     let attributes = tauri_build::Attributes::new()
         .app_manifest(tauri_build::AppManifest::new().commands(commands));

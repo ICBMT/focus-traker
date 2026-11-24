@@ -59,7 +59,7 @@ The user’s reference budget is approximately 16 GB RAM without a dedicated GPU
 
 ## 3. Foreground camera lifecycle only
 
-No vision model or fatigue/emotion classification is implemented.
+No **camera** vision model or fatigue/emotion classification is implemented. Optional screen-context vision is separate; see section 7.
 
 - [ ] Without pressing Start camera preview, there is no hardware indicator, permission request, capture stream, or network upload.
 - [ ] Grant/deny/revoke on each OS/WebView; missing/busy camera; unplug/end track; late permission result after Stop/page exit.
@@ -79,10 +79,10 @@ No vision model or fatigue/emotion classification is implemented.
 
 ## 5. Explicit Ollama path
 
-- [ ] No discovery or generation until explicit action; hosted preview never attempts the viewer’s localhost.
+- [ ] No discovery/generation until explicit action or the separate screen-context automatic-sharing grant; hosted preview never attempts the viewer’s localhost.
 - [ ] Confirm real server/model versions, model license, no-cloud configuration, and actual routing. A loopback URL or filtered model name is not sufficient evidence.
 - [ ] Test unavailable server, invalid port, no installed models, cloud-tag exclusion, slow/non-JSON/oversized responses, cancellation, and repeated send/stop.
-- [ ] Only deliberately supplied chat plus optional task context crosses the boundary; no sensors, history, tools, API keys, proxy, redirects, or remote fallback.
+- [ ] Text chat receives only deliberately supplied chat plus optional task context; no sensors, history, tools, API keys, proxy, redirects, or remote fallback.
 - [ ] Measure CPU-only RAM/latency alongside the desktop app on reference hardware. Request timeout is not a speed benchmark. Document continued server generation after client cancel where observed.
 
 ## 6. Notifications and release gates
@@ -93,3 +93,14 @@ No vision model or fatigue/emotion classification is implemented.
 - [ ] MIT licensing and signed-public distribution are selected. Complete dependency/system-library/model-license review and test installer/signing/notarization separately. The updater remains disabled. CI executable compilation is not a signed release.
 
 For camera/interaction-style effectiveness and long-session evaluation, continue the full gates in [ROADMAP.md](ROADMAP.md), [INPUT_RHYTHM.md](INPUT_RHYTHM.md), and [PLATFORM_SUPPORT.md](PLATFORM_SUPPORT.md). This checklist cannot be marked passed from synthetic input, browser screenshots, or source inspection alone.
+
+## 7. Desktop companion / screen-context feature gate (not physically checked)
+
+Use the full scenarios and exact dependencies in [DESKTOP_COMPANION.md](DESKTOP_COMPANION.md).
+
+- [ ] Record exact Ubuntu/GNOME/Wayland versions; install/enable/disconnect/uninstall the user-level extension. Verify actual corner hover/animation, no hidden input-catching region, primary/secondary monitors, DPI, lock, overview/fullscreen and keyboard/screen-reader navigation. A decorated compact-window fallback must make unsupported placement explicit.
+- [ ] Native companion mounts no workspace; denied main-only IPC, no competing JSON writers, no focus stealing on invitation, no forced break, capped/snoozable reminders, presentation shutdown, and immediate game/chat/rest exit. Closing main removes both windows and the private bridge/discovery file without bypassing failed-save controls.
+- [ ] Screen mode is off every launch; no Python worker/portal/model request before separate agreement. Validate dependency errors, text-only/remote model rejection, chooser grant/deny/cancel/revoke, selected-window closure, stream error, helper crash, lock/sleep, model/session changes, late grants/replies, parent exit, and manual stop. No silent capture fallback.
+- [ ] Inspect actual live share + 960×540 latest-frame processing + at-most-90-second model cadence. No audio or source-title/credentials/history scraping. Confirm captions/images/grants remain absent from saved data, exports and intentional logs; server logs/routing must be checked separately.
+- [ ] Live vision quality, prompt injection, sensitive content, false suggestions, unknown states, one-hour cap, CPU/RAM/latency on the 16 GB CPU-only reference; compare usefulness with timer-only mode before promoting automatic screen advice.
+- [ ] Windows/macOS compile/package and native timer/rest/chat regression. Screen context must explicitly say unavailable there; no portability claim from a Chromium browser API.
