@@ -53,7 +53,7 @@ async function request(path, method = 'GET', body) {
   const json = await response.json();
   if (!response.ok || json.value?.error)
     throw new Error(`${method} ${path}: ${JSON.stringify(json.value || json)}`);
-  return json.value ?? json;
+  return Object.hasOwn(json, 'value') ? json.value : json;
 }
 async function wait(run, label, timeout = 30_000) {
   const deadline = Date.now() + timeout;
@@ -132,19 +132,18 @@ try {
     await fill('#session-duration', '1');
     await button('Begin session', '.modal');
     await wait(
-      async () =>
-        !!(await execute(nativeScripts.hasSelector, ['button[aria-label="Pause session"]'])),
+      async () => !!(await execute(nativeScripts.hasButton, ['Pause session', '.session-card'])),
       'running session',
     );
     await sleep(2200);
     assert.notEqual(await text('[data-testid="session-timer"]'), '01:00');
-    await click('button[aria-label="Pause session"]');
+    await button('Pause session', '.session-card');
     const paused = await text('[data-testid="session-timer"]');
     await sleep(1600);
     assert.equal(await text('[data-testid="session-timer"]'), paused);
-    await click('button[aria-label="Resume session"]');
+    await button('Resume session', '.session-card');
     await sleep(1300);
-    await click('button[aria-label="Pause session"]');
+    await button('Pause session', '.session-card');
   });
   await check(
     'native files persist validated task recovery without sensor or chat fields',
@@ -174,8 +173,7 @@ try {
         'native reload',
       );
       await wait(
-        async () =>
-          !!(await execute(nativeScripts.hasSelector, ['button[aria-label="Resume session"]'])),
+        async () => !!(await execute(nativeScripts.hasButton, ['Resume session', '.session-card'])),
         'live Rust engine remains paused after renderer reload',
       );
     },
@@ -242,6 +240,14 @@ try {
   );
 } catch (error) {
   if (session) {
+    const state = await execute(nativeScripts.diagnostics).catch(() => null);
+    if (state) {
+      await writeFile(join(output, 'failure-ui.json'), JSON.stringify(state, null, 2));
+      if (process.env.GITHUB_ACTIONS)
+        console.log(
+          `::notice title=Isolated native test UI::${JSON.stringify(state).replaceAll('%', '%25').replaceAll('\n', '%0A').replaceAll('\r', '%0D')}`,
+        );
+    }
     const screenshot = await request(`/session/${session}/screenshot`).catch(() => null);
     if (screenshot) await writeFile(join(output, 'failure.png'), Buffer.from(screenshot, 'base64'));
   }

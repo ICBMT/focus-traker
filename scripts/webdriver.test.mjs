@@ -25,7 +25,7 @@ test('native selectors and labels are data, including quotes and unicode', () =>
     ...root,
     querySelector(selector) {
       selectors.push(selector);
-      return root;
+      return selector === '.not-yet-mounted' ? null : root;
     },
   };
   const context = createContext({ document });
@@ -43,6 +43,7 @@ test('native selectors and labels are data, including quotes and unicode', () =>
     assert.equal(execute('hasSelector', [selector]), true);
     assert.equal(selectors.at(-1), selector);
   }
+  assert.equal(execute('hasButton', [label, '.not-yet-mounted']), false);
   assert.equal(execute('text', ['.runtime-badge']), 'native window');
   assert.equal(execute('hasButton', [label, '.modal']), true);
   execute('clickButton', [label, '.modal']);

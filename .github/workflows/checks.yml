@@ -125,5 +125,6 @@ jobs:
             .cache/native-smoke/result.json
             .cache/native-smoke/*.png
             .cache/native-smoke/driver.log
+            .cache/native-smoke/failure-ui.json
           if-no-files-found: ignore
           retention-days: 7

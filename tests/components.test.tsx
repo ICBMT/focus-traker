@@ -7,6 +7,7 @@ import Sensors from '../src/components/Sensors';
 import RestGarden from '../src/components/RestGarden';
 import { DEFAULT_SETTINGS, emptySession } from '../src/core/types';
 import type { RuntimeInfo } from '../src/core/types';
+import { nativeScripts } from '../scripts/webdriver-scripts.mjs';
 
 const adapter = vi.hoisted(() => ({ rhythm: vi.fn() }));
 vi.mock('../src/lib/runtime', () => ({ runtime: adapter }));
@@ -213,3 +214,37 @@ it('updates the chart day boundaries at midnight even without new sessions', () 
   view.rerender(<WeekChart sessions={sessions} />);
   expect(screen.getByRole('img').getAttribute('aria-label')).not.toBe(before);
 });
+
+it.each([
+  ['focus', 'Pause session', 'onPause'],
+  ['paused', 'Resume session', 'onResume'],
+  ['break', 'Pause break', 'onPause'],
+  ['breakPaused', 'Resume break', 'onResume'],
+] as const)(
+  'the exact native harness can find and click the real %s UI control',
+  (phase, label, callback) => {
+    const callbacks = {
+      onStart: vi.fn(),
+      onPause: vi.fn(),
+      onResume: vi.fn(),
+      onFinish: vi.fn(),
+      onBreak: vi.fn(),
+      onProtect: vi.fn(),
+    };
+    render(
+      <SessionCard
+        session={{ ...emptySession(), phase, id: 'a', task: 'Harness contract' }}
+        settings={DEFAULT_SETTINGS}
+        busy={false}
+        {...callbacks}
+      />,
+    );
+    expect(screen.getByRole('button', { name: label })).toBeVisible();
+    // Execute the exact externally transported programs against the production
+    // component DOM. Visible text is its accessible name, not an aria-label
+    // attribute that the real button does not have.
+    expect(new Function(nativeScripts.hasButton)(label, '.session-card')).toBe(true);
+    new Function(nativeScripts.clickButton)(label, '.session-card');
+    expect(callbacks[callback]).toHaveBeenCalledOnce();
+  },
+);

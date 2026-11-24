@@ -50,7 +50,7 @@
 | --- | --- |
 | TypeScript strict typecheck | Passed |
 | Production Vite web build | Passed |
-| Frontend/domain/component regression suite | 127 passed across 8 test files |
+| Frontend/domain/component regression suite | 131 passed across 8 test files |
 | Rust domain core | 19 passed, including two contract tests replaying 12 session and 10 rhythm scenarios |
 | Release/harness unit tests | 6 passed: 3 integrity/approval tests plus 3 exact WebDriver-program syntax/argument/lifecycle tests |
 | Production-browser scenarios | 17 passed, including invalid-data reset, exact corrupt-v1 preservation, competing-tab rejection, and immediate pagehide flush |
