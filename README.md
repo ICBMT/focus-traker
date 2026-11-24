@@ -53,7 +53,7 @@ npm run tauri -- build --no-bundle --ci
 
 The root Cargo workspace produces `target/release/focus-desktop` (`.exe` on Windows). Installer/signing/notarization validation is a separate release gate. An OS-owned file lock prevents two native processes from editing the same workspace. Browser storage uses an exclusive Web Lock; secondary tabs and runtimes without Web Locks are temporary/read-only. Close the owner and reload a secondary tab to take ownership. No unsafe heartbeat fallback is used.
 
-**Native status:** this sandbox has no GTK/WebKit desktop stack. At commit `40a8870`, Rust workspace tests and clippy passed on Linux, Windows, and macOS; Windows NSIS and universal macOS DMG packaging/uploads succeeded. Linux deb/AppImage packaging succeeded, but its headless smoke stopped at a test-script quoting error after launching the real native window. The follow-up fixes argument encoding, syntax-tests the exact injected scripts, and adds a real close-time storage-failure check. Consult the [branch Actions results](https://github.com/ICBMT/focus-traker/actions?query=branch%3Aarena%2F4326f80b-focus-traker) for the **exact checked-out commit**, rather than treating the earlier run as a green matrix. CI launch/compilation is not GNOME/Wayland, permission, hardware, model, or signed-release validation. See [the implementation record](docs/IMPLEMENTATION.md), [native QA checklist](docs/NATIVE_QA.md), and [release guide](docs/RELEASE.md).
+**Native status:** [checks run 45375456839](https://github.com/ICBMT/focus-traker/actions/runs/45375456839) passed all four jobs at `1ce3c48`: web plus Linux/Windows/macOS Rust tests, clippy, and unsigned installer packaging. Five real Linux Tauri/Rust/WebKit smoke checks passed under Xvfb, including native persistence/reload and a real close-time save failure. **[Download the validated test installers and read the build report](docs/RELEASE_CANDIDATE.md).** Later commits require their own exact-commit checks. CI is not physical GNOME/Wayland, permission, hardware, live-model, or signed-release approval. See [the implementation record](docs/IMPLEMENTATION.md), [native QA checklist](docs/NATIVE_QA.md), and [release guide](docs/RELEASE.md).
 
 ## Local Ollama (optional, native only)
 
@@ -97,7 +97,7 @@ cargo test --workspace --locked
 
 Browser E2E builds production assets, starts a temporary preview on port `1421`, and closes it when done. Prefer `npx playwright install chromium`; minimal Linux x64 sandboxes can use the bundled dev-only Chromium fallback. Screenshots/test artifacts go under ignored `.cache/e2e/`, never sensor recordings.
 
-Observed on **2026-11-19**: **131 frontend/domain/component tests**, **3 release-integrity gate tests + 3 native-harness tests**, and **17 browser scenarios passed** locally. Rust workspace tests passed remotely on all three OS jobs at `40a8870` (Linux: **19 core + 16 native-host tests**). The browser suite includes **32 automated accessibility scans** over both themes/screens/dialogs, with no reported violations in the selected WCAG A/AA checks, and no third-party HTTP requests or uncaught errors in those scenarios. This is not a complete accessibility/security audit or evidence of native/sensor accuracy. Native-host tests cover storage/locking/export and bounded/cancellable HTTP-mocked Ollama calls; the current three-OS workflow checks follow-up changes for its own exact commit. HTTP mocks are not a live-model benchmark.
+Observed on **2026-11-19**: **131 frontend/domain/component tests**, **3 release-integrity gate tests + 3 native-harness tests**, and **17 browser scenarios passed** locally. Rust workspace tests passed remotely on all three OS jobs at `1ce3c48` (Linux/macOS: **19 core + 16 native-host tests**; Windows: **19 + 13**, excluding Unix-only cases). The browser suite includes **32 automated accessibility scans** over both themes/screens/dialogs, with no reported violations in the selected WCAG A/AA checks, and no third-party HTTP requests or uncaught errors in those scenarios. This is not a complete accessibility/security audit or evidence of native/sensor accuracy. Native-host tests cover storage/locking/export and bounded/cancellable HTTP-mocked Ollama calls; the successful Linux native smoke adds actual Tauri/Rust/WebKit coverage for five baseline flows. HTTP mocks are not a live-model benchmark.
 
 ## Repository map
 
@@ -116,6 +116,7 @@ docs/                 approved research, target design, actual status, native QA
 | Document | Purpose |
 | --- | --- |
 | [Implementation status](docs/IMPLEMENTATION.md) | Actual code, test evidence, limitations, and next gates |
+| [Validated test build](docs/RELEASE_CANDIDATE.md) | Exact successful commit, installer links, validation, and outstanding signing/device gates |
 | [Native QA](docs/NATIVE_QA.md) | Linux/Windows/macOS validation checklist and untested hardware cases |
 | [Product plan](docs/PLAN.md) | Approved wider experience, priorities, and open decisions |
 | [Research register](docs/RESEARCH.md) | R01–R27: platform capabilities, evidence limits, and licensing |

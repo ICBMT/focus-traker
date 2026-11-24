@@ -1,6 +1,6 @@
 # Native validation checklist
 
-**Status, 2026-11-19: all native device rows are unverified.** Rust core tests and production-browser tests are recorded in [IMPLEMENTATION.md](IMPLEMENTATION.md); they do not pass any real-device gate below. At 40a8870, remote Rust workspace tests/clippy passed on all three OS jobs; Windows NSIS and universal macOS DMG jobs passed. Linux packaging passed but its launched-window smoke failed on a quoting bug in the test harness. The follow-up fixes argument transport and adds a close-failure check; its result must be read from the exact-commit Actions run, not assumed from source.
+**Status, 2026-11-19: all native device rows are unverified.** Rust core tests and production-browser tests are recorded in [IMPLEMENTATION.md](IMPLEMENTATION.md); they do not pass any real-device gate below. At `1ce3c48`, [run 45375456839](https://github.com/ICBMT/focus-traker/actions/runs/45375456839) passed web and all three native tests/clippy/installer jobs. Five real Linux Tauri/Rust/WebKit smoke checks passed under Xvfb, including disk persistence/reload and a real close-time failed save. These are headless CI results, not physical-device approvals. See [the validated build report](RELEASE_CANDIDATE.md) for downloads.
 
 Linux is the first device-validation priority. Windows and macOS compile/runtime work should happen in the same cycle, not be postponed until every Linux feature is complete. Record failures/degraded features as such; never obtain coverage by elevating input privileges or disabling OS privacy controls.
 
@@ -25,11 +25,11 @@ The user’s reference budget is approximately 16 GB RAM without a dedicated GPU
 
 | Target | Source/config | CI test/build | Native launch | Permissions/hardware | Packaged/signed release |
 | --- | --- | --- | --- | --- | --- |
-| Linux / GNOME Wayland | Present, no global adapter | Ubuntu 24.04 CI tests/build passed at 40a8870; smoke harness failed | Headless WebKit window launched, not a GNOME/Wayland device | Not tested | deb/AppImage built; no verified signed release |
+| Linux / GNOME Wayland | Present, no global adapter | Ubuntu 24.04 tests/clippy/packages + 5 WebKit/Xvfb checks passed at 1ce3c48 | Headless WebKit flows passed, not a physical GNOME/Wayland session | Not tested | Unsigned deb/AppImage artifacts uploaded; no verified signed release |
 | Linux / supporting KDE Wayland | Shared host only | Same Ubuntu CI job, not KDE validation | Not tested | Not tested | No KDE-qualified/signed release |
 | Linux / genuine X11 | Shared host only | Same Ubuntu CI job; Xvfb is not device QA | Not tested on a physical X11 session | Not tested | No X11-qualified/signed release |
-| Windows / WebView2 | Shared host + icon | Tests/clippy/NSIS job passed at 40a8870 | Not tested | Not tested | Unsigned NSIS artifact; no verified signed release |
-| macOS / WKWebView | Shared host + usage text/entitlement/icon | Tests/clippy/universal-DMG job passed at 40a8870 | Not tested | Not tested | Unsigned universal DMG artifact; no verified signed release |
+| Windows / WebView2 | Shared host + icon | Tests/clippy/NSIS job passed at 1ce3c48 | Not tested | Not tested | Unsigned NSIS artifact; no verified signed release |
+| macOS / WKWebView | Shared host + usage text/entitlement/icon | Tests/clippy/universal-DMG job passed at 1ce3c48 | Not tested | Not tested | Unsigned universal DMG artifact; no verified signed release |
 
 ## 1. Baseline without sensors, AI, or accounts
 
