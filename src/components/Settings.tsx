@@ -5,7 +5,6 @@ import {
   ChevronRight,
   CircleHelp,
   Database,
-  HardDrive,
   Heart,
   LockKeyhole,
   Monitor,
@@ -15,14 +14,12 @@ import {
   Sparkles,
   Sun,
   Trash2,
-  Unplug,
-  WifiOff,
 } from 'lucide-react';
 import type { AiConnection } from '../core/ai';
 import type { RuntimeInfo, Settings as Preferences } from '../core/types';
-import { runtime } from '../lib/runtime';
 import { Button, Modal, Pill, Toggle } from './ui';
 import CompanionSettings from './CompanionSettings';
+import ModelSetup from './ModelSetup';
 import type { CompanionController } from '../hooks/useCompanion';
 import type { SessionSnapshot } from '../core/types';
 
@@ -31,6 +28,7 @@ export default function Settings({
   companion,
   session,
   onRest,
+  onSetup,
   settings,
   info,
   canSave,
@@ -45,6 +43,7 @@ export default function Settings({
   companion: CompanionController;
   session: SessionSnapshot;
   onRest: () => void;
+  onSetup: () => void;
   settings: Preferences;
   info: RuntimeInfo;
   canSave: boolean;
@@ -59,9 +58,6 @@ export default function Settings({
   const [confirm, setConfirm] = useState<'history' | 'all' | null>(null);
   const [clearing, setClearing] = useState(false);
   const [clearError, setClearError] = useState('');
-  const [connecting, setConnecting] = useState(false);
-  const [port, setPort] = useState(String(ai.port));
-  const [connectionError, setConnectionError] = useState('');
   const [licenses, setLicenses] = useState<string | null>(null);
   const openLicenses = async () => {
     setLicenses('Loading bundled license notices…');
@@ -75,40 +71,6 @@ export default function Settings({
       );
     }
   };
-  const connect = async () => {
-    const number = Number(port);
-    if (!Number.isInteger(number) || number < 1 || number > 65535) {
-      setConnectionError('Choose a port between 1 and 65535.');
-      return;
-    }
-    setConnecting(true);
-    setConnectionError('');
-    try {
-      const models = await runtime.models(number);
-      onAiChange({
-        port: number,
-        models,
-        model: models.some((m) => m.name === ai.model) ? ai.model : (models[0]?.name ?? ''),
-        connected: true,
-        source: models.length ? 'ollama' : 'offline',
-      });
-      onNotice(
-        models.length
-          ? `${models.length} installed local-model candidates found. Inference has not been benchmarked.`
-          : 'Ollama is reachable, but no eligible installed model was found. Nothing was downloaded.',
-      );
-    } catch (error) {
-      setConnectionError(
-        typeof error === 'string'
-          ? error
-          : error instanceof Error
-            ? error.message
-            : 'The local endpoint could not be reached.',
-      );
-    } finally {
-      setConnecting(false);
-    }
-  };
   return (
     <>
       <div className="page-intro">
@@ -116,6 +78,16 @@ export default function Settings({
         <h1>Your space. Your preferences.</h1>
         <p>Choose what helps. Leave the rest. Everything starts with you.</p>
       </div>
+      <section className="setup-launcher card" aria-label="Guided setup">
+        <ShieldCheck size={23} />
+        <div>
+          <h2>Everything in one gentle walkthrough.</h2>
+          <p>Timer defaults, desktop controls, model setup, and an honest permission checklist.</p>
+        </div>
+        <Button variant="secondary" onClick={onSetup}>
+          Run setup again
+        </Button>
+      </section>
       <div className="settings-layout">
         <div className="settings-nav" aria-label="Settings categories">
           {[
@@ -292,144 +264,7 @@ export default function Settings({
                   </div>
                   <Sparkles size={20} className="green-text" />
                 </div>
-                <div className="provider-options">
-                  <button
-                    type="button"
-                    className={`provider-option ${ai.source === 'offline' ? 'selected' : ''}`}
-                    onClick={() => onAiChange({ source: 'offline' })}
-                  >
-                    <span className="provider-radio" />
-                    <WifiOff size={22} />
-                    <div>
-                      <strong>Offline guidance</strong>
-                      <p>Small, hand-written starting points. No model, account, or connection.</p>
-                    </div>
-                    {ai.source === 'offline' && <Check size={18} />}
-                  </button>
-                  <button
-                    type="button"
-                    className={`provider-option ${ai.source === 'ollama' ? 'selected' : ''}`}
-                    disabled={!ai.connected || !ai.model}
-                    onClick={() => onAiChange({ source: 'ollama' })}
-                  >
-                    <span className="provider-radio" />
-                    <HardDrive size={22} />
-                    <div>
-                      <strong>Local Ollama</strong>
-                      <p>
-                        {ai.connected
-                          ? 'Use the selected installed model in the desktop host.'
-                          : 'Connect deliberately in the desktop app.'}
-                      </p>
-                    </div>
-                    {ai.source === 'ollama' && <Check size={18} />}
-                  </button>
-                </div>
-                <div className="provider-setup">
-                  <h3>Connect your local model</h3>
-                  <p>
-                    Rust connects to <code>127.0.0.1</code> only. This hosted web preview never
-                    calls your computer’s localhost.
-                  </p>
-                  {info.kind === 'web' && (
-                    <div className="inline-info">
-                      <Monitor size={17} />
-                      <span>Native app required. Offline guidance works in this preview.</span>
-                    </div>
-                  )}
-                  <label className="field-label" htmlFor="ollama-port">
-                    Ollama port
-                  </label>
-                  <div className="endpoint-input">
-                    <span>http://127.0.0.1:</span>
-                    <input
-                      id="ollama-port"
-                      type="number"
-                      min={1}
-                      max={65535}
-                      value={port}
-                      onChange={(e) => {
-                        setPort(e.target.value);
-                        onAiChange({ connected: false, source: 'offline' });
-                      }}
-                      disabled={connecting}
-                    />
-                  </div>
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={ai.acknowledged}
-                      onChange={(e) =>
-                        onAiChange({
-                          acknowledged: e.target.checked,
-                          connected: false,
-                          source: 'offline',
-                        })
-                      }
-                    />
-                    <span>
-                      I understand a loopback server can use cloud-backed routes. I’ll configure
-                      Ollama’s no-cloud settings for local-only use.
-                    </span>
-                  </label>
-                  <Button
-                    variant="secondary"
-                    disabled={info.kind !== 'desktop' || !ai.acknowledged || connecting}
-                    onClick={() => void connect()}
-                  >
-                    {connecting ? <span className="spinner" /> : <HardDrive size={16} />}
-                    {connecting ? 'Checking endpoint…' : 'Discover installed models'}
-                  </Button>
-                  {connectionError && (
-                    <div className="inline-warning" role="status">
-                      {connectionError}
-                    </div>
-                  )}
-                  {ai.connected && (
-                    <div className="model-choice">
-                      <label className="field-label" htmlFor="ollama-model">
-                        Installed model
-                      </label>
-                      <select
-                        id="ollama-model"
-                        value={ai.model}
-                        onChange={(e) => onAiChange({ model: e.target.value })}
-                      >
-                        {ai.models.length ? (
-                          ai.models.map((model) => (
-                            <option value={model.name} key={model.name}>
-                              {model.name}
-                              {model.size > 0
-                                ? ` · ${(model.size / 1e9).toFixed(1)} GB download`
-                                : ''}
-                            </option>
-                          ))
-                        ) : (
-                          <option value="">No eligible installed models</option>
-                        )}
-                      </select>
-                      <p>
-                        No automatic downloads. Known cloud tags are excluded, but server-side
-                        routing is not independently verified.
-                      </p>
-                      {ai.model.startsWith('qwen2.5-coder:3b') && (
-                        <div className="inline-warning">
-                          This model has Qwen Research License restrictions. Review its license
-                          before commercial or non-research use.
-                        </div>
-                      )}
-                      <button
-                        className="text-link"
-                        onClick={() =>
-                          onAiChange({ connected: false, model: '', models: [], source: 'offline' })
-                        }
-                      >
-                        <Unplug size={14} />
-                        Disconnect model
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <ModelSetup ai={ai} info={info} onChange={onAiChange} onNotice={onNotice} />
               </section>
               <section className="card planned-provider">
                 <LockKeyhole size={25} />

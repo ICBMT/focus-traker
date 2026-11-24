@@ -49,7 +49,9 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   Object.values(adapter).forEach((mock) => mock.mockReset());
-  adapter.load.mockResolvedValue({ data: emptyWorkspace() });
+  adapter.load.mockResolvedValue({
+    data: { ...emptyWorkspace(), settings: { ...emptyWorkspace().settings, setupCompleted: true } },
+  });
   adapter.info.mockResolvedValue({
     kind: 'web',
     engine: 'browser',
@@ -395,5 +397,101 @@ describe('failed-close user controls', () => {
     await flush();
     expect(adapter.forceClose).toHaveBeenCalledOnce();
     expect(adapter.requestClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('first-run setup orchestration', () => {
+  const openFresh = async () => {
+    adapter.load.mockResolvedValue({ data: emptyWorkspace() });
+    const view = render(
+      <div id="root">
+        <App />
+      </div>,
+    );
+    await flush();
+    return view;
+  };
+  it('opens once, remembers completion, and goes directly to the configured timer form', async () => {
+    const view = await openFresh();
+    expect(screen.getByRole('dialog', { name: 'Welcome to Focus' })).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Setup focus duration'), { target: { value: '45' } });
+    for (let i = 0; i < 4; i++) fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set my first timer' }));
+    expect(screen.getByRole('dialog', { name: 'Make room for one thing.' })).toBeVisible();
+    expect(screen.getByRole('spinbutton', { name: 'Session duration in minutes' })).toHaveValue(45);
+    expect(adapter.start).not.toHaveBeenCalled();
+    await flush(500);
+    const saved = adapter.save.mock.calls.at(-1)![0];
+    expect(saved.settings).toMatchObject({
+      setupCompleted: true,
+      focusMinutes: 45,
+      overlayEnabled: false,
+    });
+    expect(JSON.stringify(saved)).not.toMatch(/screenConsent|cameraPermission|acknowledged/);
+    view.unmount();
+    adapter.load.mockResolvedValue({ data: saved });
+    render(
+      <div id="root">
+        <App />
+      </div>,
+    );
+    await flush();
+    expect(screen.queryByRole('dialog', { name: 'Welcome to Focus' })).toBeNull();
+  });
+  it('Escape only defers setup and Preferences can reopen it', async () => {
+    await openFresh();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await flush(500);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(adapter.save.mock.calls.at(-1)![0].settings.setupCompleted).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Your preferences' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run setup again' }));
+    expect(screen.getByRole('dialog', { name: 'Welcome to Focus' })).toBeVisible();
+    await flush();
+  });
+  it('ignores companion rest/resume actions while setup is open', async () => {
+    await openFresh();
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('focus:companion-action', { detail: 'rest' }));
+      window.dispatchEvent(new CustomEvent('focus:companion-action', { detail: 'resume' }));
+    });
+    await flush();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.getByRole('dialog', { name: 'Welcome to Focus' })).toBeVisible();
+    expect(adapter.resume).not.toHaveBeenCalled();
+  });
+  it('does not obscure read-only recovery or an active timer on upgrade', async () => {
+    adapter.load.mockResolvedValue({ data: emptyWorkspace(), readOnly: true });
+    const view = render(<App />);
+    await flush();
+    expect(screen.queryByRole('dialog', { name: 'Welcome to Focus' })).toBeNull();
+    view.unmount();
+    adapter.load.mockResolvedValue({ data: { ...emptyWorkspace(), checkpoint: active() } });
+    const recovery = render(<App />);
+    await flush();
+    expect(screen.getByRole('dialog', { name: 'Pick up where you left off?' })).toBeVisible();
+    expect(screen.queryByRole('dialog', { name: 'Welcome to Focus' })).toBeNull();
+    recovery.unmount();
+    adapter.load.mockResolvedValue({ data: emptyWorkspace() });
+    adapter.snapshot.mockResolvedValue(active());
+    render(<App />);
+    await flush();
+    expect(screen.queryByRole('dialog', { name: 'Welcome to Focus' })).toBeNull();
+  });
+  it('the save-failure dialog takes priority without losing the setup step', async () => {
+    await openFresh();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    adapter.save.mockRejectedValueOnce(new Error('Disk unavailable'));
+    await act(async () =>
+      expect(await adapter.onCloseRequested.mock.calls.at(-1)![0]()).toBe(false),
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(
+      screen.getByRole('dialog', { name: 'Your last changes aren’t saved yet' }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep open' }));
+    expect(screen.getByRole('heading', { name: 'Keep a little time within reach.' })).toBeVisible();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(adapter.forceClose).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,8 @@
 
 ## Try it
 
+New installations now have a [five-step first-run setup walkthrough](SETUP.md), also available from **Preferences → Run setup again**. It configures ordinary defaults and explains optional access; it never pre-grants screen sharing. The exact build evidence below is for the earlier companion implementation, **before this later setup-wizard extension**. Use an exact-commit check/build that includes the wizard when testing that addition.
+
 1. Open **Preferences → Desktop companion** (also the monitor icon in the top bar).
 2. Enable **Desktop corner timer**. It defaults off; this preference is saved, but screen-sharing permission never is.
 3. On GNOME/Wayland, choose **Install GNOME companion…**, review the user-level file installation, and confirm. Enable **Focus desktop companion** in GNOME Extensions yourself. If it is not discovered, log out and back in once; do not restart GNOME Shell in-place on Wayland. The connection badge changes only after authenticated requests actually reach the running app.

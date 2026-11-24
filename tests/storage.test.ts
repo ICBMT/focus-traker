@@ -221,3 +221,27 @@ describe('corrupt supported-version documents', () => {
     expect(loadBrowserWorkspace(NOW)).toEqual({ data: { ...data, sessions: [] } });
   });
 });
+
+it('migrates an absent setup milestone without treating it as permission', () => {
+  const data = emptyWorkspace();
+  const settings: Partial<typeof data.settings> = { ...data.settings };
+  delete settings.setupCompleted;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, settings }));
+  expect(loadBrowserWorkspace()).toEqual({ data });
+  data.settings.setupCompleted = true;
+  saveBrowserWorkspace(data);
+  expect(loadBrowserWorkspace()).toEqual({ data });
+  expect(JSON.stringify(loadBrowserWorkspace().data)).not.toMatch(
+    /consent|Permission|acknowledged|camera|screenGrant/,
+  );
+  for (const patch of [
+    { setupCompleted: 'yes' },
+    { screenConsent: true },
+    { cameraPermission: 'granted' },
+  ]) {
+    const raw = JSON.stringify({ ...data, settings: { ...data.settings, ...patch } });
+    localStorage.setItem(STORAGE_KEY, raw);
+    expect(loadBrowserWorkspace().readOnly).toBe(true);
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw);
+  }
+});

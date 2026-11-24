@@ -63,6 +63,9 @@ pub struct Settings {
     gentle_reminders: bool,
     #[serde(default = "reminder_default")]
     reminder_minutes: u32,
+    // A UI milestone only, never a stored OS/sensor/model permission.
+    #[serde(default)]
+    setup_completed: bool,
 }
 fn reminder_default() -> u32 {
     25
@@ -80,6 +83,7 @@ impl Default for Settings {
             overlay_enabled: false,
             gentle_reminders: false,
             reminder_minutes: 25,
+            setup_completed: false,
         }
     }
 }
@@ -240,9 +244,27 @@ mod tests {
         assert!(data.validate(NOW).is_err());
     }
     #[test]
+    fn setup_completion_is_only_a_boolean_ui_milestone() {
+        let mut value = serde_json::to_value(Workspace::default()).unwrap();
+        value["settings"]["setupCompleted"] = serde_json::json!(true);
+        let mut restored: Workspace = serde_json::from_value(value.clone()).unwrap();
+        restored.validate(NOW).unwrap();
+        assert!(restored.settings.setup_completed);
+        value["settings"]["setupCompleted"] = serde_json::json!("granted");
+        assert!(serde_json::from_value::<Workspace>(value.clone()).is_err());
+        value["settings"]["setupCompleted"] = serde_json::json!(true);
+        value["settings"]["cameraPermission"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<Workspace>(value).is_err());
+    }
+    #[test]
     fn old_v1_preferences_migrate_additively_without_restoring_screen_consent() {
         let mut value = serde_json::to_value(Workspace::default()).unwrap();
-        for key in ["overlayEnabled", "gentleReminders", "reminderMinutes"] {
+        for key in [
+            "overlayEnabled",
+            "gentleReminders",
+            "reminderMinutes",
+            "setupCompleted",
+        ] {
             value["settings"].as_object_mut().unwrap().remove(key);
         }
         let mut restored: Workspace = serde_json::from_value(value.clone()).unwrap();
@@ -250,6 +272,7 @@ mod tests {
         assert!(!restored.settings.overlay_enabled);
         assert!(!restored.settings.gentle_reminders);
         assert_eq!(restored.settings.reminder_minutes, 25);
+        assert!(!restored.settings.setup_completed);
         value["settings"]["screenSharing"] = serde_json::json!(true);
         assert!(serde_json::from_value::<Workspace>(value).is_err());
     }

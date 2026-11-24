@@ -8,6 +8,7 @@
 
 This branch extends the **validated foundation release candidate** with a desktop companion and separate opt-in screen-context implementation. New native/platform behavior needs its own exact-commit checks and physical validation; it is not yet a validated public production release. The owner selected MIT licensing and signed public distribution; signing/device approval remains gated. See [release preparation](docs/RELEASE.md).
 
+- **Guided first-run setup** — five short steps for timer defaults, the desktop companion, offline/local AI, an honest permission checklist, and a direct first-timer handoff. Skip or defer, then reopen from Preferences. Setup completion never grants camera/screen access. See [the walkthrough](docs/SETUP.md).
 - **Intentions and task sessions** — deep work, reading/learning, and creative work; adjustable durations; pause/resume; early finish; optional breaks.
 - **A calm workspace** — focus room, real-data daily summaries and seven-day chart, searchable intentions, voluntary local check-ins, light/dark/system themes, and reduced motion.
 - **Desktop companion** — an opt-in corner-hover timer, GNOME/Wayland Shell integration with a compact-window fallback, snoozable/capped invitations, presentation mode, and no automatic focus-stealing break screen. See [setup and honest platform limits](docs/DESKTOP_COMPANION.md).
@@ -57,6 +58,12 @@ The root Cargo workspace produces `target/release/focus-desktop` (`.exe` on Wind
 
 **Native status:** [checks run 45375456839](https://github.com/ICBMT/focus-traker/actions/runs/45375456839) passed all four jobs at `1ce3c48`: web plus Linux/Windows/macOS Rust tests, clippy, and unsigned installer packaging. Five real Linux Tauri/Rust/WebKit smoke checks passed under Xvfb, including native persistence/reload and a real close-time save failure. **[Download the validated test installers and read the build report](docs/RELEASE_CANDIDATE.md).** Later commits require their own exact-commit checks. CI is not physical GNOME/Wayland, permission, hardware, live-model, or signed-release approval. See [the implementation record](docs/IMPLEMENTATION.md), [native QA checklist](docs/NATIVE_QA.md), and [release guide](docs/RELEASE.md).
 
+## First launch
+
+The setup walkthrough appears once in an eligible writable workspace, before you set your first timer. Existing preferences are retained on upgrade; interrupted/active sessions and read-only workspaces take priority rather than being covered by setup. **Set my first timer** opens the normal intention/duration form with your chosen defaults—it does not start work automatically.
+
+**Skip setup** remembers that you chose to move on. Close/Escape defers it until another launch. Reopen it anytime through **Preferences → Run setup again**. Every optional feature can stay off. Camera testing is explicit and stops on leaving its step; screen sharing still requires separate per-session consent and the OS chooser after work begins. Details and platform-specific prerequisites are in [SETUP.md](docs/SETUP.md).
+
 ## Local Ollama (optional, native only)
 
 No model is discovered or downloaded without your action. Text chat requires each Send. After **separate screen-context opt-in**, the chosen vision route is called automatically at most every 90 seconds during that approved work session.
@@ -103,6 +110,8 @@ Foundation baseline on **2026-11-19**: **131 frontend/domain/component tests**, 
 
 Current desktop-companion changes: **151 frontend tests**, **18 browser scenarios and 38 axe states** passed locally, with no reported selected-rule violations, third-party HTTP requests or uncaught errors. The first feature matrix **[45393415934](https://github.com/ICBMT/focus-traker/actions/runs/45393415934) passed at abda5ec**, including three-OS Rust/clippy/packages and six real Linux native checks (separate companion, denied main-only IPC, voluntary rest). Later revisions require their own exact-SHA run; see [the setup/build record](docs/DESKTOP_COMPANION.md). This is not physical GNOME/PipeWire or live-model validation.
 
+First-run setup extension: **172 frontend tests**, **19 production-browser scenarios**, and **50 axe states** (both themes, all setup steps and the optional camera-consent surface) are covered locally. New synthetic-stream/discovery regressions cover denied/late permission replies, leaving setup, and stale model discovery; App regressions cover completion/reopen, recovery/read-only deferral, and priority failed-close controls. The native smoke suite now also exercises the first-run wizard and persisted completion; use the exact-commit CI result, not older linked installers, to establish that it ran. No new OS privilege or Tauri capability was added. Physical OS permission/desktop validation and signed publication remain separate gates.
+
 ## Repository map
 
 ```text
@@ -117,17 +126,17 @@ docs/                 approved research, target design, actual status, native QA
 
 ## Approved plan and remaining work
 
-| Document | Purpose |
-| --- | --- |
-| [Implementation status](docs/IMPLEMENTATION.md) | Actual code, test evidence, limitations, and next gates |
+| Document                                          | Purpose                                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [Implementation status](docs/IMPLEMENTATION.md)   | Actual code, test evidence, limitations, and next gates                                    |
 | [Validated test build](docs/RELEASE_CANDIDATE.md) | Exact successful commit, installer links, validation, and outstanding signing/device gates |
-| [Native QA](docs/NATIVE_QA.md) | Linux/Windows/macOS validation checklist and untested hardware cases |
-| [Product plan](docs/PLAN.md) | Approved wider experience, priorities, and open decisions |
-| [Research register](docs/RESEARCH.md) | R01–R27: platform capabilities, evidence limits, and licensing |
-| [Input rhythm](docs/INPUT_RHYTHM.md) | Interaction-style research, privacy constraints, and validation design |
-| [Architecture](docs/ARCHITECTURE.md) | Target architecture; includes components not yet implemented |
-| [Platform support](docs/PLATFORM_SUPPORT.md) | Researched feasibility, not a claim of tested native support |
-| [Privacy and safety](docs/PRIVACY_AND_SAFETY.md) | Standing product requirements and safe fallbacks |
-| [Roadmap](docs/ROADMAP.md) | Feasibility gates and remaining milestones |
+| [Native QA](docs/NATIVE_QA.md)                    | Linux/Windows/macOS validation checklist and untested hardware cases                       |
+| [Product plan](docs/PLAN.md)                      | Approved wider experience, priorities, and open decisions                                  |
+| [Research register](docs/RESEARCH.md)             | R01–R27: platform capabilities, evidence limits, and licensing                             |
+| [Input rhythm](docs/INPUT_RHYTHM.md)              | Interaction-style research, privacy constraints, and validation design                     |
+| [Architecture](docs/ARCHITECTURE.md)              | Target architecture; includes components not yet implemented                               |
+| [Platform support](docs/PLATFORM_SUPPORT.md)      | Researched feasibility, not a claim of tested native support                               |
+| [Privacy and safety](docs/PRIVACY_AND_SAFETY.md)  | Standing product requirements and safe fallbacks                                           |
+| [Roadmap](docs/ROADMAP.md)                        | Feasibility gates and remaining milestones                                                 |
 
 The app/source is [MIT licensed](LICENSE); dependencies retain their own terms. Build-time npm/Cargo notice inventory and an in-app license viewer are included. Separately bundled system libraries, installer resources, trademark obligations, and model licenses still require distribution review. No signed public release has been published. Signing keys belong in the protected CI environment, never in chat; follow [RELEASE.md](docs/RELEASE.md).

@@ -56,6 +56,7 @@ export interface Settings {
   overlayEnabled: boolean;
   gentleReminders: boolean;
   reminderMinutes: number;
+  setupCompleted: boolean;
 }
 
 export interface Workspace {
@@ -94,6 +95,7 @@ export const DEFAULT_SETTINGS: Settings = {
   overlayEnabled: false,
   gentleReminders: false,
   reminderMinutes: 25,
+  setupCompleted: false,
 };
 
 export const WORK_STYLES: Record<WorkStyle, { label: string; description: string }> = {

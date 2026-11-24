@@ -34,6 +34,7 @@ export function parseWorkspace(raw: unknown, now = Date.now()): Workspace {
     reminderMinutes: finite(settings.reminderMinutes, 10, 90)
       ? Math.round(settings.reminderMinutes)
       : 25,
+    setupCompleted: settings.setupCompleted === true,
   };
   const intentionsSeen = new Set<string>();
   if (Array.isArray(raw.intentions))
@@ -152,6 +153,7 @@ export function loadBrowserWorkspace(now = Date.now()): {
         overlayEnabled: false,
         gentleReminders: false,
         reminderMinutes: 25,
+        setupCompleted: false,
         ...parsed.settings,
       };
     if (Array.isArray(parsed.sessions) && object(parsed.settings))

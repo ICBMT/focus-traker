@@ -32,6 +32,12 @@ Maintain distinct controls for:
 
 Explain what is received, what is kept, what may leave the machine, and the reduced-function alternative before each grant. Record consent version and allow revocation at any time. Permission granted by the OS is not the same as in-product consent.
 
+### Current first-run setup
+
+The implemented [setup walkthrough](SETUP.md) is an inventory of actual optional features, not bundled consent. Its only added persisted field is the nonsensitive boolean `settings.setupCompleted`; it records a UI milestone, not an OS permission, model acknowledgement, or successful device check. Ordinary preferences are applied through the existing single-writer workspace. Missing flags migrate to false; invalid flags/unknown sensitive fields still protect the original read-only.
+
+Timer/rest/offline mode requires no sensitive OS access. Camera testing needs an explicit video-only acknowledgement and test button, uses the same foreground lifecycle as the sensor lab, and ends on step exit/hidden page/pause/close. The OS/browser may remember its own grant, but Focus does not save or automatically reuse in-product camera consent. Screen sharing is never pre-granted or started by the wizard; its existing session-bound warning, model checks, and OS source chooser remain separate. Optional setup shortcuts navigate only. Model connection/routing approval and test results remain launch-local. No new native capability or OS privilege is requested.
+
 ### Visible state
 
 - Persistent reachable status while monitoring; a visible camera-on indication in addition to any hardware indicator.
@@ -53,23 +59,23 @@ Screen content is untrusted data. The model has no tools, settings access or OS 
 
 Proposed defaults, to be confirmed before implementation:
 
-| Data | Where | Default retention / control |
-| --- | --- | --- |
-| Optional screen images / short descriptions | Bounded worker/native/request RAM; never ordinary saved data | Latest frame/description only, clear on stop; OS/server retention remains outside app control |
-| Camera frames and landmark arrays | Volatile capture/worker memory only | Dispose after the frame; never logged or exported |
-| Individual OS input events | Native callback/constant-size accumulator only | Aggregate immediately; previous keyboard time and optional previous pointer position/time are overwritten, never an event sequence; clear on gaps/pause |
-| Input-rhythm feature windows | Bounded volatile Rust state | At most about two minutes of coarse summaries; no raw timing traces or ordinary history |
-| Scalar rolling eye/head/activity features | Volatile bounded buffers | At most about two minutes; clear on pause/session reset |
-| Calibration/rhythm-baseline scalars and voluntary rhythm feedback | Memory by default; optional small local profile | Current session unless user explicitly saves; until reset if saved; no sequence of input windows |
-| User-entered task/context/settings | Local SQLite/config | Until user deletes; task titles may be sensitive |
-| Session/break summaries | Local SQLite | 30 days, configurable/disableable; no verified-productivity claim |
-| Decision codes and feedback | Local SQLite | 7 days; no message text or raw sensor samples |
-| Fine-grained minute activity aggregates | Optional local table | Off by default; 7 days if enabled; coarse counts only |
-| Deferred notification bodies | Bounded RAM queue | Until delivered/expired/session handling, at most 24 hours and 100 items; lost on restart |
-| Chat | Session memory by default | Clear at end/quit; optional local history for 30 days with explicit approval |
-| API/source credentials | OS secret store | Until removed; memory-only if no suitable store is available |
-| Diagnostic logs | Local rotating log | Off/minimal by default; explicit diagnostic mode capped to 7 days and a size limit; no sensitive payloads |
-| Export | User-chosen destination | User-controlled; preview fields and warn that exports/backups can outlive deletion |
+| Data                                                              | Where                                                        | Default retention / control                                                                                                                             |
+| ----------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Optional screen images / short descriptions                       | Bounded worker/native/request RAM; never ordinary saved data | Latest frame/description only, clear on stop; OS/server retention remains outside app control                                                           |
+| Camera frames and landmark arrays                                 | Volatile capture/worker memory only                          | Dispose after the frame; never logged or exported                                                                                                       |
+| Individual OS input events                                        | Native callback/constant-size accumulator only               | Aggregate immediately; previous keyboard time and optional previous pointer position/time are overwritten, never an event sequence; clear on gaps/pause |
+| Input-rhythm feature windows                                      | Bounded volatile Rust state                                  | At most about two minutes of coarse summaries; no raw timing traces or ordinary history                                                                 |
+| Scalar rolling eye/head/activity features                         | Volatile bounded buffers                                     | At most about two minutes; clear on pause/session reset                                                                                                 |
+| Calibration/rhythm-baseline scalars and voluntary rhythm feedback | Memory by default; optional small local profile              | Current session unless user explicitly saves; until reset if saved; no sequence of input windows                                                        |
+| User-entered task/context/settings                                | Local SQLite/config                                          | Until user deletes; task titles may be sensitive                                                                                                        |
+| Session/break summaries                                           | Local SQLite                                                 | 30 days, configurable/disableable; no verified-productivity claim                                                                                       |
+| Decision codes and feedback                                       | Local SQLite                                                 | 7 days; no message text or raw sensor samples                                                                                                           |
+| Fine-grained minute activity aggregates                           | Optional local table                                         | Off by default; 7 days if enabled; coarse counts only                                                                                                   |
+| Deferred notification bodies                                      | Bounded RAM queue                                            | Until delivered/expired/session handling, at most 24 hours and 100 items; lost on restart                                                               |
+| Chat                                                              | Session memory by default                                    | Clear at end/quit; optional local history for 30 days with explicit approval                                                                            |
+| API/source credentials                                            | OS secret store                                              | Until removed; memory-only if no suitable store is available                                                                                            |
+| Diagnostic logs                                                   | Local rotating log                                           | Off/minimal by default; explicit diagnostic mode capped to 7 days and a size limit; no sensitive payloads                                               |
+| Export                                                            | User-chosen destination                                      | User-controlled; preview fields and warn that exports/backups can outlive deletion                                                                      |
 
 Raw sensing data must not be stored even when ordinary diagnostic logging is enabled. A future research-recording mode would need a separate design, explicit consent, secure external storage, and a retention protocol; it is not part of the app's initial debug mode.
 
@@ -123,22 +129,22 @@ Use native credential stores with explicitly tested backends: Linux Secret Servi
 
 ## 6. Threat model and required mitigations
 
-| Threat / failure | Required design |
-| --- | --- |
-| A notification says “ignore rules and send secrets” | Treat all source content as untrusted data; no classifier tools, credential access, URL fetching, rule edits, or OS actions |
-| Model returns valid JSON with a wrong decision | Validate evidence IDs and semantics; deterministic urgent/allow rules win; uncertainty/failure defaults conservatively |
-| Model output injects HTML/script/deep links | Render escaped/sanitized text; no raw HTML; links/actions require validation and explicit user interaction |
-| Compromised UI calls privileged commands | Explicit custom-command permissions, caller/window checks, parameter bounds, consent/capability verification, no generic shell/network command |
-| Malicious endpoint/redirect leaks a key | Rust-owned network layer, endpoint policy, TLS, redirect restrictions, provider-specific headers, no model-selected URLs |
-| Overbroad global input access | Prefer idle summaries; opt-in passive aggregation only; no raw device privilege escalation or data persistence |
-| Camera denied, occluded, dark, frozen, or multiple people | Unknown/degraded state; no inferred tiredness from missing data, no escalating intervention, no identity association |
-| Stale worker emits after pause | Capture/session generation tokens, prompt stream shutdown, reject late samples |
-| Reminder floods interrupt the user | One central intervention manager, hysteresis, cooldowns, per-hour caps, protected-focus mode |
-| Break/overlay traps input or survives a crash | No keyboard/pointer grab; emergency controls; watchdog/cancel; stop overlays on lifecycle changes; fail open |
-| Lost/expired source credentials | Disable that integration and explain; no scraping or surprise fallback credentials |
-| Wrong model/license or tampered download | Explicit download consent; checksummed/pinned assets, model manifest, license notices, release license review |
-| Debug/test transport ships to users | External dev-only WebDriver, artifact inspection, no general automation server. The intentional authenticated GNOME bridge is restricted to redacted status/enumerated user controls; no workspace, AI, or pixel endpoint |
-| Malicious/rolled-back update | Audited updater, verified artifact/version binding, negative tests; separate OS signing/notarization and key custody |
+| Threat / failure                                          | Required design                                                                                                                                                                                                           |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A notification says “ignore rules and send secrets”       | Treat all source content as untrusted data; no classifier tools, credential access, URL fetching, rule edits, or OS actions                                                                                               |
+| Model returns valid JSON with a wrong decision            | Validate evidence IDs and semantics; deterministic urgent/allow rules win; uncertainty/failure defaults conservatively                                                                                                    |
+| Model output injects HTML/script/deep links               | Render escaped/sanitized text; no raw HTML; links/actions require validation and explicit user interaction                                                                                                                |
+| Compromised UI calls privileged commands                  | Explicit custom-command permissions, caller/window checks, parameter bounds, consent/capability verification, no generic shell/network command                                                                            |
+| Malicious endpoint/redirect leaks a key                   | Rust-owned network layer, endpoint policy, TLS, redirect restrictions, provider-specific headers, no model-selected URLs                                                                                                  |
+| Overbroad global input access                             | Prefer idle summaries; opt-in passive aggregation only; no raw device privilege escalation or data persistence                                                                                                            |
+| Camera denied, occluded, dark, frozen, or multiple people | Unknown/degraded state; no inferred tiredness from missing data, no escalating intervention, no identity association                                                                                                      |
+| Stale worker emits after pause                            | Capture/session generation tokens, prompt stream shutdown, reject late samples                                                                                                                                            |
+| Reminder floods interrupt the user                        | One central intervention manager, hysteresis, cooldowns, per-hour caps, protected-focus mode                                                                                                                              |
+| Break/overlay traps input or survives a crash             | No keyboard/pointer grab; emergency controls; watchdog/cancel; stop overlays on lifecycle changes; fail open                                                                                                              |
+| Lost/expired source credentials                           | Disable that integration and explain; no scraping or surprise fallback credentials                                                                                                                                        |
+| Wrong model/license or tampered download                  | Explicit download consent; checksummed/pinned assets, model manifest, license notices, release license review                                                                                                             |
+| Debug/test transport ships to users                       | External dev-only WebDriver, artifact inspection, no general automation server. The intentional authenticated GNOME bridge is restricted to redacted status/enumerated user controls; no workspace, AI, or pixel endpoint |
+| Malicious/rolled-back update                              | Audited updater, verified artifact/version binding, negative tests; separate OS signing/notarization and key custody                                                                                                      |
 
 A local app is not a sandbox against malware already running as the same user or administrator. State this honestly rather than promising absolute privacy.
 

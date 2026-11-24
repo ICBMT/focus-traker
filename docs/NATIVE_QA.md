@@ -23,13 +23,13 @@ The user’s reference budget is approximately 16 GB RAM without a dedicated GPU
 
 ## Current platform ledger
 
-| Target | Source/config | CI test/build | Native launch | Permissions/hardware | Packaged/signed release |
-| --- | --- | --- | --- | --- | --- |
-| Linux / GNOME Wayland | Present, no global adapter | Ubuntu 24.04 tests/clippy/packages + 5 WebKit/Xvfb checks passed at 1ce3c48 | Headless WebKit flows passed, not a physical GNOME/Wayland session | Not tested | Unsigned deb/AppImage artifacts uploaded; no verified signed release |
-| Linux / supporting KDE Wayland | Shared host only | Same Ubuntu CI job, not KDE validation | Not tested | Not tested | No KDE-qualified/signed release |
-| Linux / genuine X11 | Shared host only | Same Ubuntu CI job; Xvfb is not device QA | Not tested on a physical X11 session | Not tested | No X11-qualified/signed release |
-| Windows / WebView2 | Shared host + icon | Tests/clippy/NSIS job passed at 1ce3c48 | Not tested | Not tested | Unsigned NSIS artifact; no verified signed release |
-| macOS / WKWebView | Shared host + usage text/entitlement/icon | Tests/clippy/universal-DMG job passed at 1ce3c48 | Not tested | Not tested | Unsigned universal DMG artifact; no verified signed release |
+| Target                         | Source/config                             | CI test/build                                                               | Native launch                                                      | Permissions/hardware | Packaged/signed release                                              |
+| ------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------- | -------------------------------------------------------------------- |
+| Linux / GNOME Wayland          | Present, no global adapter                | Ubuntu 24.04 tests/clippy/packages + 5 WebKit/Xvfb checks passed at 1ce3c48 | Headless WebKit flows passed, not a physical GNOME/Wayland session | Not tested           | Unsigned deb/AppImage artifacts uploaded; no verified signed release |
+| Linux / supporting KDE Wayland | Shared host only                          | Same Ubuntu CI job, not KDE validation                                      | Not tested                                                         | Not tested           | No KDE-qualified/signed release                                      |
+| Linux / genuine X11            | Shared host only                          | Same Ubuntu CI job; Xvfb is not device QA                                   | Not tested on a physical X11 session                               | Not tested           | No X11-qualified/signed release                                      |
+| Windows / WebView2             | Shared host + icon                        | Tests/clippy/NSIS job passed at 1ce3c48                                     | Not tested                                                         | Not tested           | Unsigned NSIS artifact; no verified signed release                   |
+| macOS / WKWebView              | Shared host + usage text/entitlement/icon | Tests/clippy/universal-DMG job passed at 1ce3c48                            | Not tested                                                         | Not tested           | Unsigned universal DMG artifact; no verified signed release          |
 
 ## 1. Baseline without sensors, AI, or accounts
 
@@ -104,3 +104,17 @@ Use the full scenarios and exact dependencies in [DESKTOP_COMPANION.md](DESKTOP_
 - [ ] Inspect actual live share + 960×540 latest-frame processing + at-most-90-second model cadence. No audio or source-title/credentials/history scraping. Confirm captions/images/grants remain absent from saved data, exports and intentional logs; server logs/routing must be checked separately.
 - [ ] Live vision quality, prompt injection, sensitive content, false suggestions, unknown states, one-hour cap, CPU/RAM/latency on the 16 GB CPU-only reference; compare usefulness with timer-only mode before promoting automatic screen advice.
 - [ ] Windows/macOS compile/package and native timer/rest/chat regression. Screen context must explicitly say unavailable there; no portability claim from a Chromium browser API.
+
+## 8. First-run setup / permission inventory
+
+See [SETUP.md](SETUP.md). Test with a new profile and with a pre-setup v1 workspace; keep backups rather than editing real task data for testing.
+
+- [ ] Wizard starts once after successful writable initialization; retains prior preferences on upgrade, and does not cover checkpoint recovery, running/paused work, another confirmation, or the priority failed-save controls.
+- [ ] Skip remembers completion without optional access. Close/Escape defers to the next launch. Preferences → Run setup again works without resetting history/tasks or starting/restarting a timer.
+- [ ] Timer/break/appearance/history/motion/desktop defaults survive restart; Set my first timer opens the configured form but never starts work until Begin session. Full data reset clears the UI milestone, while Clear history preserves it.
+- [ ] No camera/model/extension-install/portal request occurs merely from moving through steps. Camera test needs the explicit checkbox and test button; grant/deny/revoke/late result/hidden window/step change/close/failure suppression stop the preview without blocking the timer. The OS may retain its own permission; no app camera grant is saved.
+- [ ] GNOME installation has a separate confirmation, copies only the documented user-level files, and never enables the extension or invokes an administrator/shell installer. Confirm absent/non-GNOME/version-restricted fallbacks and independent manual extension enablement.
+- [ ] Model discovery requires acknowledgement and a deliberate click. Offline choice, endpoint changes, leaving setup, and failed-close suppression discard late replies. No weights/downloads/API keys or persisted model approval. Actual local/no-cloud routing remains a separate check.
+- [ ] Optional screen-setup shortcut only navigates to sharing controls after a deliberately started timer. It cannot grant capture or open the portal itself; the existing warning/source chooser and runtime dependency/model checks remain mandatory.
+- [ ] Every step works with keyboard/screen reader, both themes, large text, reduced motion, minimum window size and mixed DPI. Lists say unavailable/not requested rather than reporting permissions as granted without an actual check.
+- [ ] Storage/save errors are visible in the wizard. Close failure shows exactly one priority dialog and returning preserves the step; no camera share restarts. An invalid/read-only workspace is never overwritten to remember setup.

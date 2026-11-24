@@ -19,6 +19,7 @@ import { makeBaseline, RhythmAccumulator } from '../core/rhythm';
 import type { RhythmBaseline, RhythmResult, RhythmSummary } from '../core/rhythm';
 import type { RuntimeInfo, WorkStyle } from '../core/types';
 import { runtime } from '../lib/runtime';
+import { useCameraPreview } from '../hooks/useCameraPreview';
 import { Button, Modal, Pill, Toggle } from './ui';
 
 const emptySummary = (): RhythmSummary => ({
@@ -40,12 +41,13 @@ export default function Sensors({
   onActivity: (active: boolean) => void;
   onNotice: (message: string) => void;
 }) {
-  const [cameraState, setCameraState] = useState<'off' | 'requesting' | 'live'>('off');
-  const [cameraError, setCameraError] = useState('');
+  const camera = useCameraPreview();
+  const { state: cameraState, error: cameraError, video, stop: stopCamera } = camera;
   const [cameraConsent, setCameraConsent] = useState(false);
-  const video = useRef<HTMLVideoElement>(null);
-  const stream = useRef<MediaStream | null>(null);
-  const generation = useRef(0);
+  const startCamera = () => {
+    setCameraConsent(false);
+    return camera.start();
+  };
   const [labEnabled, setLabEnabled] = useState(false);
   const [labConsent, setLabConsent] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -61,16 +63,6 @@ export default function Sensors({
   const labGeneration = useRef(0);
   const [labEpoch, setLabEpoch] = useState(0);
 
-  const stopCamera = useCallback(() => {
-    generation.current += 1;
-    stream.current?.getTracks().forEach((track) => {
-      track.onended = null;
-      track.stop();
-    });
-    stream.current = null;
-    if (video.current) video.current.srcObject = null;
-    setCameraState('off');
-  }, []);
   const stopLab = useCallback(() => {
     labGeneration.current += 1;
     setLabEnabled(false);
@@ -88,7 +80,6 @@ export default function Sensors({
   }, [cameraState, labEnabled, onActivity]);
   useEffect(() => {
     const stop = () => {
-      stopCamera();
       stopLab();
     };
     const hidden = () => {
@@ -99,67 +90,11 @@ export default function Sensors({
     return () => {
       window.removeEventListener('focus:pause-sensors', stop);
       document.removeEventListener('visibilitychange', hidden);
-      generation.current += 1;
-      stream.current?.getTracks().forEach((track) => {
-        track.onended = null;
-        track.stop();
-      });
-      stream.current = null;
       labGeneration.current += 1;
       accumulator.current.reset(performance.now());
       onActivity(false);
     };
-  }, [stopCamera, stopLab, onActivity]);
-
-  const startCamera = async () => {
-    setCameraConsent(false);
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError(
-        'Camera capture is unavailable in this runtime. Use a secure context or test the native app. Your timer works without it.',
-      );
-      return;
-    }
-    const token = ++generation.current;
-    setCameraState('requesting');
-    setCameraError('');
-    try {
-      const capture = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15, max: 20 } },
-        audio: false,
-      });
-      if (token !== generation.current || document.hidden) {
-        capture.getTracks().forEach((track) => track.stop());
-        return;
-      }
-      stream.current = capture;
-      capture.getVideoTracks().forEach((track) => {
-        track.onended = () => {
-          stopCamera();
-          setCameraError(
-            'Camera access ended. Capture is off; no observations were inferred from the gap.',
-          );
-        };
-      });
-      if (video.current) {
-        video.current.srcObject = capture;
-        await video.current.play();
-      }
-      if (token === generation.current) setCameraState('live');
-    } catch (error) {
-      if (token !== generation.current) return;
-      stopCamera();
-      const name = error instanceof DOMException ? error.name : '';
-      setCameraError(
-        name === 'NotAllowedError'
-          ? 'Camera access was not granted. Check your browser/site or OS permissions. Embedded previews may restrict camera access; the timer needs no permission.'
-          : name === 'NotFoundError'
-            ? 'No camera was found. You can keep using Focus without one.'
-            : name === 'NotReadableError'
-              ? 'The camera is busy or unavailable. Close other capture apps and try again when you choose.'
-              : 'The camera could not start in this runtime. Capture is off; try the native app or continue without it.',
-      );
-    }
-  };
+  }, [stopLab, onActivity]);
 
   useEffect(() => {
     if (!labEnabled) return;

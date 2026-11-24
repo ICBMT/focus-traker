@@ -36,6 +36,7 @@ import { useCompanion } from './hooks/useCompanion';
 import type { ScreenAdvice } from './core/companion';
 import { CompanionPanel } from './components/CompanionPanel';
 import RestSpace from './components/RestSpace';
+import SetupWizard from './components/SetupWizard';
 import { runtime } from './lib/runtime';
 import { emptyAiConnection } from './core/ai';
 import type { AiConnection } from './core/ai';
@@ -65,6 +66,9 @@ export default function App() {
   const [page, setPage] = useState<Page>('overview');
   const [mobileNav, setMobileNav] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('general');
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupDismissed, setSetupDismissed] = useState(false);
+  const [screenGuideAfterStart, setScreenGuideAfterStart] = useState(false);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [recoveryVisible, setRecoveryVisible] = useState(true);
   const [coach, setCoach] = useState(false);
@@ -104,7 +108,16 @@ export default function App() {
       return;
     }
     if (document.querySelector('[role="dialog"]')) return;
-    if (dialog || coach || garden || restSpace || app.closeBlocked || app.busy || !app.ready)
+    if (
+      setupOpen ||
+      dialog ||
+      coach ||
+      garden ||
+      restSpace ||
+      app.closeBlocked ||
+      app.busy ||
+      !app.ready
+    )
       return;
     await companion.stop();
     if (['focus', 'break'].includes(app.session.phase)) {
@@ -120,8 +133,10 @@ export default function App() {
     ai,
     info: app.info,
     ready: app.ready,
-    blocked: !!dialog || coach || garden || restSpace || app.closeBlocked || !!app.recovery,
+    blocked:
+      setupOpen || !!dialog || coach || garden || restSpace || app.closeBlocked || !!app.recovery,
     onAction: (action, message) => {
+      if (setupOpen && !['disable', 'stopSharing', 'pause'].includes(action)) return;
       if (action === 'disable') app.updateSettings({ overlayEnabled: false });
       if (action === 'stopSharing') notify('Screen sharing stopped. It won’t restart by itself.');
       if (action === 'open') navigate('room');
@@ -144,6 +159,40 @@ export default function App() {
       }
     },
   });
+
+  useEffect(() => {
+    // Never cover recovery, a running/paused session, corrupt/read-only data,
+    // or another confirmation with a first-run flow. No permission is queried.
+    if (
+      app.ready &&
+      app.canSave &&
+      !app.data.settings.setupCompleted &&
+      !setupDismissed &&
+      !app.recovery &&
+      !isActive(app.session.phase) &&
+      !app.closeBlocked &&
+      !app.busy &&
+      !dialog &&
+      !coach &&
+      !garden &&
+      !restSpace &&
+      !document.querySelector('[role="dialog"]')
+    )
+      setSetupOpen(true);
+  }, [
+    app.ready,
+    app.canSave,
+    app.data.settings.setupCompleted,
+    setupDismissed,
+    app.recovery,
+    app.session.phase,
+    app.closeBlocked,
+    app.busy,
+    dialog,
+    coach,
+    garden,
+    restSpace,
+  ]);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -174,7 +223,9 @@ export default function App() {
         !garden &&
         !restSpace &&
         !dialog &&
-        !app.recovery
+        !app.recovery &&
+        !setupOpen &&
+        !app.closeBlocked
       ) {
         event.preventDefault();
         setSearch('');
@@ -184,9 +235,10 @@ export default function App() {
     };
     window.addEventListener('keydown', shortcuts);
     return () => window.removeEventListener('keydown', shortcuts);
-  }, [coach, garden, restSpace, dialog, app.recovery]);
+  }, [coach, garden, restSpace, dialog, app.recovery, setupOpen, app.closeBlocked]);
 
   const openStart = (title = '', mode: WorkStyle = 'deep') => {
+    setScreenGuideAfterStart(false);
     if (app.recovery) {
       setRecoveryVisible(true);
       return;
@@ -557,6 +609,17 @@ export default function App() {
                   companion={companion}
                   session={app.session}
                   onRest={() => void openRestSpace(companion.advice)}
+                  onSetup={() => {
+                    if (app.recovery) {
+                      setRecoveryVisible(true);
+                      return;
+                    }
+                    if (app.busy || app.closeBlocked || document.querySelector('[role="dialog"]'))
+                      return;
+                    window.dispatchEvent(new Event('focus:pause-sensors'));
+                    void companion.stop();
+                    setSetupOpen(true);
+                  }}
                   settings={app.data.settings}
                   info={app.info}
                   canSave={app.canSave}
@@ -571,6 +634,9 @@ export default function App() {
                       void companion.stop();
                       setRestMessage(null);
                       if (all) {
+                        // Keep the completed reset confirmation clear; offer setup on
+                        // the next launch, or through its explicit Preferences button.
+                        setSetupDismissed(true);
                         setAi(emptyAiConnection());
                         companion.setPresentation(false);
                       }
@@ -613,6 +679,38 @@ export default function App() {
           </button>
         </footer>
       </div>
+      {setupOpen && (
+        <SetupWizard
+          settings={app.data.settings}
+          info={app.info}
+          ai={ai}
+          companion={companion}
+          session={app.session}
+          canSave={app.canSave}
+          storageWarning={app.error}
+          onUpdate={app.updateSettings}
+          onAiChange={changeAi}
+          onNotice={notify}
+          onActivity={onSensorsActivity}
+          onDismiss={() => {
+            setSetupOpen(false);
+            setSetupDismissed(true);
+            notify('Setup can wait. Continue anytime from Preferences → Run setup again.');
+          }}
+          onFinish={({ startTimer, screenGuide }) => {
+            app.updateSettings({ setupCompleted: true });
+            setSetupOpen(false);
+            setSetupDismissed(true);
+            if (startTimer) {
+              navigate('room');
+              if (!isActive(app.session.phase)) {
+                openStart();
+                setScreenGuideAfterStart(screenGuide);
+              }
+            }
+          }}
+        />
+      )}
       {app.closeBlocked && (
         <Modal
           priority
@@ -707,7 +805,13 @@ export default function App() {
                   });
                   if (result) {
                     setDialog(null);
-                    notify('Your session has begun. One small step at a time.');
+                    if (screenGuideAfterStart) {
+                      setScreenGuideAfterStart(false);
+                      navigate('settings', 'desktop');
+                      notify(
+                        'Your timer is running. Choose “Set up screen context…” only if you want to share a source.',
+                      );
+                    } else notify('Your session has begun. One small step at a time.');
                   }
                 }
               }}
@@ -1108,6 +1212,7 @@ export default function App() {
         app.data.settings.overlayEnabled &&
         !companion.presentation &&
         !app.closeBlocked &&
+        !setupOpen &&
         !dialog &&
         !coach &&
         !garden &&

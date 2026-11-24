@@ -128,6 +128,29 @@ try {
     await wait(() => text('.session-card'), 'workspace initialization');
     assert.equal(await text('[data-testid="session-timer"]'), '25:00');
   });
+  await check(
+    'first-run native setup is optional, permission-free, and leads to the timer',
+    async () => {
+      await wait(() => text('.setup-wizard .setup-step-heading'), 'native first-run setup');
+      assert((await text('.setup-wizard')).includes('No special permissions needed to begin.'));
+      for (let step = 0; step < 4; step++) {
+        await button('Continue', '.setup-wizard');
+        await wait(
+          async () => (await text('.setup-wizard .eyebrow')).includes(`STEP ${step + 2} OF 5`),
+          `setup step ${step + 2} acknowledged`,
+        );
+      }
+      assert((await text('.setup-review')).includes('Off · choose a source per session'));
+      assert((await text('.setup-review')).includes('Off · not tested (optional)'));
+      await button('Set my first timer', '.setup-wizard');
+      await wait(
+        () => execute(nativeScripts.hasSelector, ['#intention-title']),
+        'configured first timer form',
+      );
+      await button('Not now', '.modal');
+      await wait(async () => !(await text('.modal')), 'setup exit acknowledged');
+    },
+  );
   await check('native sessions start, pause, and resume through IPC', async () => {
     await button('Start focus');
     await fill('#intention-title', 'Native smoke fixture');
@@ -161,6 +184,7 @@ try {
       }, 'paused native checkpoint');
       workspacePath = path;
       assert.equal(saved.checkpoint.task, 'Native smoke fixture');
+      assert.equal(saved.settings.setupCompleted, true);
       assert.deepEqual(Object.keys(saved).sort(), [
         'checkpoint',
         'intentions',

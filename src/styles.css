@@ -4930,3 +4930,427 @@ body.companion-window #root {
     margin-right: 19px;
   }
 }
+
+/* First-run setup is a single accessible dialog, never a stack of permission
+   modals. All steps use the same scroll surface on small/native-minimum windows. */
+.setup-launcher {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 23px;
+  margin-bottom: 24px;
+}
+.setup-launcher > svg {
+  color: var(--green);
+}
+.setup-launcher > div {
+  flex: 1;
+  min-width: 0;
+}
+.setup-launcher h2 {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.setup-launcher p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.setup-launcher .button {
+  flex-shrink: 0;
+}
+.setup-wizard .modal {
+  width: min(100%, 980px);
+  padding: 0;
+  border-radius: 22px;
+}
+.setup-wizard .modal-header {
+  padding: 24px 28px 20px;
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
+.setup-layout {
+  display: grid;
+  grid-template-columns: 225px minmax(0, 1fr);
+}
+.setup-sidebar {
+  padding: 20px 14px;
+  background: var(--soft);
+  border-right: 1px solid var(--line);
+}
+.setup-sidebar ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.setup-sidebar li {
+  min-width: 0;
+}
+.setup-sidebar li button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border-radius: 10px;
+  padding: 13px 10px;
+  text-align: left;
+  color: var(--text);
+}
+.setup-sidebar li button.current {
+  background: var(--sage);
+  color: var(--ink);
+}
+.setup-step-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  color: var(--green);
+  background: var(--panel);
+}
+.setup-sidebar strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+.setup-sidebar small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.setup-sidebar-note {
+  border-top: 1px solid var(--line);
+  margin: 24px 10px 0;
+  padding-top: 20px;
+  color: var(--green);
+}
+.setup-sidebar-note p {
+  font-size: 11px;
+  line-height: 1.9;
+  color: var(--muted);
+  margin-top: 10px;
+}
+.setup-main {
+  padding: 28px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.setup-step-heading {
+  margin-bottom: 22px;
+}
+.setup-step-heading h3 {
+  font-family: 'Manrope Variable', sans-serif;
+  font-weight: 500;
+  font-size: 24px;
+  letter-spacing: -0.8px;
+  line-height: 1.5;
+  outline: none;
+}
+.setup-step-heading > p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.85;
+  margin-top: 8px;
+}
+.setup-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--sage);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  color: var(--green);
+  margin: 16px 0 22px;
+}
+.setup-callout p {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.9;
+}
+.setup-callout strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.setup-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px;
+}
+.setup-field {
+  display: block;
+  font-size: 12px;
+  color: var(--ink);
+}
+.setup-field > span {
+  display: block;
+  margin-bottom: 9px;
+  font-weight: 500;
+}
+.setup-main .setting-row {
+  padding: 18px 0;
+  gap: 18px;
+}
+.setup-main .setting-row p {
+  font-size: 12px;
+}
+.setup-main .setting-row .toggle {
+  flex-shrink: 0;
+}
+.setup-inset {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  margin-top: 20px;
+}
+.setup-inset h4,
+.setup-permission h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.6;
+  font-weight: 600;
+}
+.setup-inset h4 {
+  margin-bottom: 12px;
+}
+.setup-inset > p,
+.setup-permission > p,
+.setup-details > p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.9;
+  margin-top: 12px;
+}
+.gnome-install > .inline-warning {
+  margin-top: 12px;
+}
+.setup-inset .gnome-install {
+  margin-top: 16px;
+}
+.setup-inset .setup-inset {
+  background: var(--panel);
+}
+.setup-model .provider-options {
+  padding: 0 0 20px;
+}
+.setup-model .provider-option strong {
+  font-size: 13px;
+}
+.setup-model .provider-option p {
+  font-size: 12px;
+}
+.setup-model .provider-setup {
+  padding: 20px 0 0;
+}
+.setup-model .provider-setup > p,
+.setup-model .model-choice > p {
+  font-size: 12px;
+}
+.setup-permissions {
+  display: grid;
+  gap: 14px;
+}
+.setup-permission {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 17px;
+}
+.setup-permission-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  color: var(--green);
+}
+.setup-permission-heading .pill {
+  margin-left: auto;
+}
+.setup-details {
+  border-top: 1px solid var(--line);
+  padding-top: 13px;
+  margin-top: 15px;
+}
+.setup-details summary {
+  cursor: pointer;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+.setup-details pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.9;
+  color: var(--text);
+  background: var(--soft);
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.setup-details video {
+  width: 100%;
+  max-height: 190px;
+  background: var(--soft);
+  border-radius: 10px;
+  margin-bottom: 14px;
+  object-fit: contain;
+}
+.setup-details > [role='status']:not(.inline-warning) {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+  margin-top: 12px;
+}
+.setup-main .checkbox-label {
+  font-size: 12px;
+}
+.setup-ready-mark {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  color: var(--green);
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--sage);
+}
+.setup-ready-mark strong {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.setup-ready-mark p {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.9;
+  margin-top: 6px;
+}
+.setup-review {
+  margin: 20px 0;
+}
+.setup-review > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--line);
+  padding: 13px 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.setup-review dt {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.setup-review dd {
+  margin: 0;
+  color: var(--ink);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.setup-actions {
+  border-top: 1px solid var(--line);
+  margin-top: 26px;
+  padding-top: 22px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.setup-actions > div {
+  display: flex;
+  gap: 9px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.setup-fine-print {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.9;
+  margin-top: 15px;
+}
+.setup-dismiss-note {
+  margin-top: 14px;
+}
+@media (max-width: 700px) {
+  .setup-wizard {
+    padding: 12px;
+  }
+  .setup-wizard .modal {
+    max-height: calc(100dvh - 24px);
+    border-radius: 16px;
+  }
+  .setup-wizard .modal-header {
+    padding: 20px;
+  }
+  .setup-layout {
+    display: block;
+  }
+  .setup-sidebar {
+    padding: 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .setup-sidebar ol {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 3px;
+  }
+  .setup-sidebar li button {
+    flex-direction: column;
+    gap: 7px;
+    padding: 8px 3px;
+    text-align: center;
+  }
+  .setup-sidebar strong {
+    font-size: 10px;
+    line-height: 1.6;
+  }
+  .setup-sidebar small,
+  .setup-sidebar-note {
+    display: none;
+  }
+  .setup-step-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+  .setup-main {
+    padding: 20px;
+  }
+  .setup-step-heading h3 {
+    font-size: 21px;
+  }
+  .setup-permission-heading .pill {
+    margin-left: 0;
+  }
+  .setup-launcher {
+    flex-wrap: wrap;
+  }
+  .setup-launcher > div {
+    flex-basis: calc(100% - 50px);
+  }
+  .setup-launcher .button {
+    margin-left: 38px;
+  }
+}
+@media (max-width: 420px) {
+  .setup-fields {
+    grid-template-columns: 1fr;
+  }
+  .setup-actions > div {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .setup-ready-mark {
+    align-items: flex-start;
+  }
+}

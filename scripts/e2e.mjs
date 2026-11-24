@@ -85,6 +85,55 @@ try {
   const saved = () =>
     page.evaluate(() => JSON.parse(localStorage.getItem('focus.workspace.v1') || 'null'));
 
+  await check(
+    'first-run setup covers every step, fits narrow screens, and opens the first timer',
+    async () => {
+      const wizard = page.getByRole('dialog', { name: 'Welcome to Focus' });
+      await expect(wizard).toBeVisible();
+      await expect(wizard.getByText('No special permissions needed to begin.')).toBeVisible();
+      for (let step = 0; step < 5; step++) {
+        for (const width of [390, 940, 1440]) {
+          await page.setViewportSize({ width, height: width === 940 ? 680 : 1000 });
+          const dimensions = await wizard.evaluate((el) => ({
+            viewport: innerWidth,
+            document: document.documentElement.scrollWidth,
+            width: el.clientWidth,
+            scroll: el.scrollWidth,
+          }));
+          expect(dimensions.document, `setup step ${step + 1} at ${width}px`).toBeLessThanOrEqual(
+            dimensions.viewport,
+          );
+          expect(
+            dimensions.scroll,
+            `setup dialog step ${step + 1} at ${width}px`,
+          ).toBeLessThanOrEqual(dimensions.width);
+          if (step === 0 && width === 1440)
+            await page.screenshot({ path: `${artifacts}/setup-welcome.png`, fullPage: true });
+          if (step === 3 && width === 390)
+            await page.screenshot({
+              path: `${artifacts}/setup-permissions-mobile.png`,
+              fullPage: true,
+            });
+        }
+        expect(await page.evaluate(() => window.__cameraRequests)).toBe(0);
+        expect(await page.evaluate(() => window.__screenRequests)).toBe(0);
+        if (step < 4) await wizard.getByRole('button', { name: 'Continue', exact: true }).click();
+      }
+      await page.screenshot({ path: `${artifacts}/setup-ready.png`, fullPage: true });
+      await wizard.getByRole('button', { name: 'Set my first timer' }).click();
+      await expect(page.getByRole('dialog', { name: 'Make room for one thing.' })).toBeVisible();
+      await expect(
+        page.getByRole('spinbutton', { name: 'Session duration in minutes' }),
+      ).toHaveValue('25');
+      await page.getByRole('button', { name: 'Not now', exact: true }).click();
+      await advance(500);
+      expect((await saved()).settings.setupCompleted).toBe(true);
+      await page.reload();
+      await advance(50);
+      await expect(page.getByRole('dialog', { name: 'Welcome to Focus' })).toHaveCount(0);
+      await expect(page.getByTestId('session-timer')).toHaveText('25:00');
+    },
+  );
   await check('fresh workspace has real empty states and no permission request', async () => {
     await expect(page.getByRole('heading', { name: 'Make space for good work.' })).toBeVisible();
     await expect(page.getByTestId('session-timer')).toHaveText('25:00');
@@ -358,12 +407,16 @@ try {
         overlayEnabled: false,
         gentleReminders: false,
         reminderMinutes: 25,
+        setupCompleted: false,
       },
       intentions: [],
       sessions: [],
       checkpoint: null,
     });
     await expect(page.getByRole('alert')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Run setup again' }).click();
+    await page.getByRole('button', { name: 'Skip setup', exact: true }).click();
+    await advance(500);
   });
 
   await check(
@@ -403,6 +456,9 @@ try {
       expect((await saved()).settings.focusMinutes).toBe(25);
       expect((await saved()).unknownField).toBeUndefined();
       await expect(page.getByRole('alert')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Run setup again' }).click();
+      await page.getByRole('button', { name: 'Skip setup', exact: true }).click();
+      await advance(500);
     },
   );
 
@@ -494,12 +550,25 @@ try {
           outbound.push(request.url());
       });
       await page.goto(url);
+      await page.getByRole('dialog', { name: 'Welcome to Focus' }).waitFor();
+      await page.getByRole('button', { name: 'Skip setup', exact: true }).click();
       await page.getByRole('heading', { name: 'Make space for good work.' }).waitFor();
       for (const theme of ['light', 'dark']) {
         await nav('Preferences');
         await page
           .getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light', exact: true })
           .click();
+        await page.getByRole('button', { name: 'Run setup again' }).click();
+        const wizard = page.getByRole('dialog', { name: 'Set up Focus' });
+        for (let step = 0; step < 5; step++) {
+          await audit(`Setup step ${step + 1}`);
+          if (step === 3) {
+            await wizard.getByText('Try camera access (optional)').click();
+            await audit('Setup optional camera consent');
+          }
+          if (step < 4) await wizard.getByRole('button', { name: 'Continue', exact: true }).click();
+        }
+        await wizard.getByRole('button', { name: 'Go to workspace', exact: true }).click();
         for (const name of names) {
           await nav(name);
           await audit(name);

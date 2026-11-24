@@ -3,7 +3,7 @@ import { Coffee, Eye, Monitor, ShieldCheck, Sparkles } from 'lucide-react';
 import type { AiConnection } from '../core/ai';
 import type { RuntimeInfo, SessionSnapshot, Settings } from '../core/types';
 import type { CompanionController } from '../hooks/useCompanion';
-import { companionRuntime } from '../lib/companion';
+import GnomeInstall from './GnomeInstall';
 import { Button, Modal, Pill, Toggle } from './ui';
 
 export default function CompanionSettings({
@@ -24,9 +24,6 @@ export default function CompanionSettings({
   onRest: () => void;
 }) {
   const [consent, setConsent] = useState(false);
-  const [install, setInstall] = useState(false);
-  const [installing, setInstalling] = useState(false);
-  const [installResult, setInstallResult] = useState('');
   const aiReady = ai.acknowledged && ai.connected && ai.source === 'ollama' && !!ai.model;
   const canShare =
     c.screenSupported &&
@@ -86,15 +83,8 @@ export default function CompanionSettings({
               </p>
               <code>focus-companion@icbmt</code>
             </div>
-            <Button variant="secondary" onClick={() => setInstall(true)}>
-              Install GNOME companion…
-            </Button>
+            <GnomeInstall />
           </div>
-        )}
-        {installResult && (
-          <p className="inline-warning" role="status">
-            {installResult}
-          </p>
         )}
         <div className="setting-row">
           <div>
@@ -272,55 +262,6 @@ export default function CompanionSettings({
               }}
             >
               I agree · choose a window
-            </Button>
-          </div>
-        </Modal>
-      )}
-      {install && (
-        <Modal
-          title="Install the optional GNOME companion?"
-          eyebrow="USER-LEVEL DESKTOP INTEGRATION"
-          onClose={() => {
-            if (!installing) setInstall(false);
-          }}
-        >
-          <p className="modal-description">
-            Write or replace the bundled extension files and MIT license under your user data
-            directory’s <code>gnome-shell/extensions/focus-companion@icbmt</code> folder. No
-            administrator access, automatic activation, autostart, or system-wide changes. The
-            extension reads only a redacted timer and can request the same voluntary controls shown
-            here.
-          </p>
-          <p className="modal-description">
-            On Wayland, log out and back in if needed, then enable “Focus desktop companion” in
-            GNOME Extensions. Older GNOME releases and non-GNOME compositors keep the compact-window
-            fallback. Physical GNOME validation is still a release gate.
-          </p>
-          <div className="modal-actions">
-            <Button variant="ghost" disabled={installing} onClick={() => setInstall(false)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={installing}
-              onClick={async () => {
-                setInstalling(true);
-                try {
-                  setInstallResult(await companionRuntime.installGnome());
-                  setInstall(false);
-                } catch (e) {
-                  setInstallResult(
-                    typeof e === 'string'
-                      ? e
-                      : e instanceof Error
-                        ? e.message
-                        : 'The extension could not be installed.',
-                  );
-                } finally {
-                  setInstalling(false);
-                }
-              }}
-            >
-              {installing ? 'Installing files…' : 'Install bundled files'}
             </Button>
           </div>
         </Modal>
