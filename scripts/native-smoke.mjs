@@ -90,10 +90,12 @@ const fill = async (selector, value) => {
     value: [...value],
   });
 };
-const button = async (label, scope = '') => {
+const button = async (label, scope = '', nextLabel) => {
   const found = await wait(() => execute(nativeScripts.hasButton, [label, scope]), label);
   assert(found);
   await execute(nativeScripts.clickButton, [label, scope]);
+  if (nextLabel)
+    await wait(() => execute(nativeScripts.hasButton, [nextLabel, scope]), `${label} acknowledged`);
 };
 async function check(name, run) {
   await run();
@@ -137,13 +139,13 @@ try {
     );
     await sleep(2200);
     assert.notEqual(await text('[data-testid="session-timer"]'), '01:00');
-    await button('Pause session', '.session-card');
+    await button('Pause session', '.session-card', 'Resume session');
     const paused = await text('[data-testid="session-timer"]');
     await sleep(1600);
     assert.equal(await text('[data-testid="session-timer"]'), paused);
-    await button('Resume session', '.session-card');
+    await button('Resume session', '.session-card', 'Pause session');
     await sleep(1300);
-    await button('Pause session', '.session-card');
+    await button('Pause session', '.session-card', 'Resume session');
   });
   await check(
     'native files persist validated task recovery without sensor or chat fields',
@@ -167,7 +169,13 @@ try {
         'settings',
       ]);
       assert(!/cameraFrames|landmarks|rhythmBaseline|apiKey|chat/.test(JSON.stringify(saved)));
+      const rendererOrigin = await execute(nativeScripts.timeOrigin);
+      assert(Number.isFinite(rendererOrigin));
       await execute(nativeScripts.reload);
+      await wait(
+        () => execute(nativeScripts.reloadReady, [rendererOrigin]),
+        'new renderer document',
+      );
       await wait(
         async () => (await text('.runtime-badge')).includes('Desktop · Rust'),
         'native reload',
@@ -181,6 +189,7 @@ try {
   await check('finish creates real native history and a chosen break stays escapable', async () => {
     await click('button[aria-label="End session"]');
     await button('Finish session', '.modal');
+    await wait(async () => !(await text('.modal')), 'finish acknowledged');
     await button('Your insights');
     await wait(
       async () => (await text('.history-row')).includes('Native smoke fixture'),
@@ -238,6 +247,10 @@ try {
       2,
     ),
   );
+  if (process.env.GITHUB_ACTIONS)
+    console.log(
+      `::notice title=Native WebKit smoke::${checks} real Tauri/Rust/WebKit checks passed; Xvfb only, not physical-device QA.`,
+    );
 } catch (error) {
   if (session) {
     const state = await execute(nativeScripts.diagnostics).catch(() => null);

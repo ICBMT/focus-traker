@@ -8,6 +8,9 @@ export const nativeScripts = Object.freeze({
     'const root = arguments[1] ? document.querySelector(arguments[1]) : document; return !!root && [...root.querySelectorAll("button")].some(b => b.textContent.trim() === arguments[0] && !b.disabled);',
   clickButton:
     'const root = arguments[1] ? document.querySelector(arguments[1]) : document; [...root.querySelectorAll("button")].find(b => b.textContent.trim() === arguments[0] && !b.disabled).click();',
+  timeOrigin: 'return performance.timeOrigin;',
+  reloadReady:
+    'return performance.timeOrigin !== arguments[0] && document.readyState === "complete";',
   reload: 'window.location.reload(); return true;',
   diagnostics:
     'return {body:document.body.innerText.slice(0,6000),buttons:[...document.querySelectorAll("button")].map(b => ({label:b.getAttribute("aria-label") || b.textContent.trim(),disabled:b.disabled})),fields:[...document.querySelectorAll("input")].map(i => ({id:i.id,value:i.value}))};',

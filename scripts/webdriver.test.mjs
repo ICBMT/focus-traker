@@ -59,7 +59,17 @@ test('native reload and close use the normal window lifecycle', () => {
       invoke: (command, args) => calls.push([command, args.label]),
     },
   };
-  const context = createContext({ window });
+  const document = { readyState: 'complete' };
+  const performance = { timeOrigin: 100 };
+  const context = createContext({ window, document, performance });
+  const execute = (name, args = []) =>
+    compileFunction(nativeScripts[name], [], { parsingContext: context })(...args);
+  assert.equal(execute('timeOrigin'), 100);
+  assert.equal(execute('reloadReady', [100]), false);
+  performance.timeOrigin = 200;
+  assert.equal(execute('reloadReady', [100]), true);
+  document.readyState = 'loading';
+  assert.equal(execute('reloadReady', [100]), false);
   for (const name of ['reload', 'requestClose'])
     assert.equal(compileFunction(nativeScripts[name], [], { parsingContext: context })(), true);
   assert.deepEqual(calls, ['reload', ['plugin:window|close', 'main']]);

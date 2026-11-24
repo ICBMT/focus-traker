@@ -6,6 +6,8 @@ export const nativeScripts: Readonly<
     | 'hasButton'
     | 'clickButton'
     | 'reload'
+    | 'timeOrigin'
+    | 'reloadReady'
     | 'requestClose'
     | 'diagnostics',
     string
